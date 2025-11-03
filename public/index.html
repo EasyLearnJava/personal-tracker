@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Expense Tracker - Track Your Finances</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <!-- ==================== LOGIN PAGE ==================== -->
+    <div id="login-page" class="auth-page active">
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <h1>💰 ExpenseTracker</h1>
+                    <p>Manage Your Finances</p>
+                </div>
+
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">Login</button>
+                    <button class="auth-tab" data-tab="register">Register</button>
+                </div>
+
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form active">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Login</button>
+                    <p class="auth-message" id="login-message"></p>
+                </form>
+
+                <!-- Register Form -->
+                <form id="register-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="register-name">Full Name</label>
+                        <input type="text" id="register-name" placeholder="Enter your full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" placeholder="At least 6 characters" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-confirm">Confirm Password</label>
+                        <input type="password" id="register-confirm" placeholder="Confirm your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Register</button>
+                    <p class="auth-message" id="register-message"></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>💰 ExpenseTracker</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="dashboard">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-view="expenses">
+                    <span class="icon">💳</span>
+                    <span>Expenses</span>
+                </a>
+                <a href="#" class="nav-item" data-view="reports">
+                    <span class="icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="#" class="nav-item" data-view="categories">
+                    <span class="icon">🏷️</span>
+                    <span>Categories</span>
+                </a>
+                <a href="#" class="nav-item" data-view="income">
+                    <span class="icon">💰</span>
+                    <span>Income</span>
+                </a>
+                <a href="#" class="nav-item" data-view="payment-methods">
+                    <span class="icon">💳</span>
+                    <span>Payment Methods</span>
+                </a>
+                <a href="#" class="nav-item" data-view="cards">
+                    <span class="icon">🏦</span>
+                    <span>Cards</span>
+                </a>
+                <a href="#" class="nav-item" data-view="debts">
+                    <span class="icon">📋</span>
+                    <span>Debts</span>
+                </a>
+                <a href="#" class="nav-item" data-view="settings">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h2 id="page-title">Dashboard</h2>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-primary" id="add-expense-btn">+ Add Expense</button>
+                    <div class="user-menu">
+                        <span id="user-name" class="user-name">User</span>
+                        <button class="btn btn-secondary" id="logout-btn">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view active">
+                    <!-- Dashboard Filters -->
+                    <div class="dashboard-filters">
+                        <select id="dashboard-filter-period" class="filter-select">
+                            <option value="current_week">Current Week</option>
+                            <option value="past_week">Past Week</option>
+                            <option value="current_month" selected>Current Month</option>
+                            <option value="past_month">Past Month</option>
+                            <option value="current_year">Current Year</option>
+                            <option value="past_year">Past Year</option>
+                            <option value="past_5_years">Past 5 Years</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <!-- Stats Cards -->
+                        <div class="stats-container">
+                            <div class="stat-card">
+                                <div class="stat-icon">💵</div>
+                                <div class="stat-content">
+                                    <p class="stat-label">Total Spent</p>
+                                    <p class="stat-value" id="total-spent">$0.00</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📊</div>
+                                <div class="stat-content">
+                                    <p class="stat-label">Average Expense</p>
+                                    <p class="stat-value" id="avg-expense">$0.00</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📈</div>
+                                <div class="stat-content">
+                                    <p class="stat-label">Highest Expense</p>
+                                    <p class="stat-value" id="max-expense">$0.00</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📉</div>
+                                <div class="stat-content">
+                                    <p class="stat-label">Lowest Expense</p>
+                                    <p class="stat-value" id="min-expense">$0.00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts -->
+                        <div class="charts-container">
+                            <div class="chart-card">
+                                <h3>Spending by Category</h3>
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                            <div class="chart-card">
+                                <h3>Spending by Payment Method</h3>
+                                <canvas id="paymentChart"></canvas>
+                            </div>
+                            <div class="chart-card full-width">
+                                <h3>Monthly Spending Trend</h3>
+                                <canvas id="trendChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Upcoming Expenses Section -->
+                        <div class="upcoming-section full-width">
+                            <h3>📅 Upcoming Expenses (Recurring)</h3>
+                            <div id="upcoming-expenses-list" class="upcoming-list"></div>
+                        </div>
+
+                        <!-- Upcoming Income Section -->
+                        <div class="upcoming-section full-width">
+                            <h3>💰 Upcoming Income (Recurring)</h3>
+                            <div id="upcoming-income-list" class="upcoming-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expenses View -->
+                <div id="expenses-view" class="view">
+                    <div class="expenses-header">
+                        <div class="filter-group">
+                            <input type="date" id="filter-start-date" placeholder="Start Date">
+                            <input type="date" id="filter-end-date" placeholder="End Date">
+                            <select id="filter-category">
+                                <option value="">All Categories</option>
+                            </select>
+                            <select id="filter-payment">
+                                <option value="">All Payment Methods</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cash">Cash</option>
+                            </select>
+                            <button class="btn btn-secondary" id="apply-filters">Apply Filters</button>
+                            <button class="btn btn-secondary" id="clear-filters">Clear</button>
+                        </div>
+                    </div>
+                    <div class="expenses-list" id="expenses-list"></div>
+                </div>
+
+                <!-- Reports View -->
+                <div id="reports-view" class="view">
+                    <!-- Reports Filters -->
+                    <div class="reports-filters">
+                        <select id="reports-filter-period" class="filter-select">
+                            <option value="current_week">Current Week</option>
+                            <option value="past_week">Past Week</option>
+                            <option value="current_month" selected>Current Month</option>
+                            <option value="past_month">Past Month</option>
+                            <option value="current_year">Current Year</option>
+                            <option value="past_year">Past Year</option>
+                            <option value="past_5_years">Past 5 Years</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+
+                    <div class="reports-container">
+                        <div class="report-section">
+                            <h3>Category Breakdown</h3>
+                            <div id="category-report" class="report-table"></div>
+                        </div>
+                        <div class="report-section">
+                            <h3>Payment Method Breakdown</h3>
+                            <div id="payment-report" class="report-table"></div>
+                        </div>
+                        <div class="report-section">
+                            <h3>Card Breakdown</h3>
+                            <div id="card-report" class="report-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories View -->
+                <div id="categories-view" class="view">
+                    <div class="categories-header">
+                        <button class="btn btn-primary" id="add-category-btn">+ Add Category</button>
+                    </div>
+                    <div class="categories-container" id="categories-list"></div>
+                </div>
+
+                <!-- Income View -->
+                <div id="income-view" class="view">
+                    <div class="income-header">
+                        <div class="income-header-top">
+                            <button class="btn btn-primary" id="add-income-btn">+ Add Income</button>
+                        </div>
+                        <!-- Income Filters -->
+                        <div class="income-filters">
+                            <select id="income-filter-period" class="filter-select">
+                                <option value="current_week">Current Week</option>
+                                <option value="past_week">Past Week</option>
+                                <option value="current_month" selected>Current Month</option>
+                                <option value="past_month">Past Month</option>
+                                <option value="current_year">Current Year</option>
+                                <option value="past_year">Past Year</option>
+                                <option value="past_5_years">Past 5 Years</option>
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="income-list" id="income-list"></div>
+                </div>
+
+                <!-- Payment Methods View -->
+                <div id="payment-methods-view" class="view">
+                    <div class="payment-methods-header">
+                        <button class="btn btn-primary" id="add-payment-method-btn">+ Add Payment Method</button>
+                    </div>
+                    <div class="payment-methods-list" id="payment-methods-list"></div>
+                </div>
+
+                <!-- Cards View -->
+                <div id="cards-view" class="view">
+                    <div class="cards-header">
+                        <button class="btn btn-primary" id="add-card-btn">+ Add Card</button>
+                    </div>
+                    <div class="cards-list" id="cards-list"></div>
+                </div>
+
+                <!-- Debts View -->
+                <div id="debts-view" class="view">
+                    <div class="debts-header">
+                        <button class="btn btn-primary" id="add-debt-btn">+ Add Debt</button>
+                    </div>
+
+                    <!-- Card Debts Summary -->
+                    <div id="card-debts-section" style="display: none;">
+                        <h3 style="margin-top: 30px; margin-bottom: 15px;">💳 Credit Card Debts</h3>
+                        <div class="card-debts-grid" id="card-debts-grid"></div>
+                    </div>
+
+                    <!-- Other Debts -->
+                    <div id="other-debts-section">
+                        <h3 style="margin-top: 30px; margin-bottom: 15px;">📋 Other Debts</h3>
+                        <div id="debts-summary"></div>
+                        <div class="debts-list" id="debts-list"></div>
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div id="settings-view" class="view">
+                    <div class="settings-container">
+                        <!-- General Settings -->
+                        <div class="settings-section">
+                            <h3>⚙️ General Settings</h3>
+                            <div class="settings-group">
+                                <label>
+                                    <input type="checkbox" id="setting-notifications" checked>
+                                    Enable Notifications
+                                </label>
+                                <p class="setting-description">Get alerts for upcoming expenses and income</p>
+                            </div>
+                            <div class="settings-group">
+                                <label>
+                                    <input type="checkbox" id="setting-dark-mode">
+                                    Dark Mode
+                                </label>
+                                <p class="setting-description">Switch to dark theme (coming soon)</p>
+                            </div>
+                            <div class="settings-group">
+                                <label>Currency</label>
+                                <select id="setting-currency">
+                                    <option value="USD">USD ($)</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                    <option value="INR">INR (₹)</option>
+                                    <option value="JPY">JPY (¥)</option>
+                                    <option value="AUD">AUD (A$)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Budget Settings -->
+                        <div class="settings-section">
+                            <h3>💰 Budget Settings</h3>
+                            <div class="settings-group">
+                                <label>Monthly Budget Limit</label>
+                                <input type="number" id="setting-monthly-budget" placeholder="Enter amount" step="0.01">
+                                <p class="setting-description">Set a monthly spending limit</p>
+                            </div>
+                            <div class="settings-group">
+                                <label>
+                                    <input type="checkbox" id="setting-budget-alerts" checked>
+                                    Alert when budget is exceeded
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Data Management -->
+                        <div class="settings-section">
+                            <h3>📊 Data Management</h3>
+                            <div class="settings-group">
+                                <button class="btn btn-secondary" id="export-data-btn">📥 Export Data (JSON)</button>
+                                <p class="setting-description">Download all your data as JSON file</p>
+                            </div>
+                            <div class="settings-group">
+                                <button class="btn btn-secondary" id="export-csv-btn">📥 Export as CSV</button>
+                                <p class="setting-description">Download expenses as CSV for spreadsheet</p>
+                            </div>
+                            <div class="settings-group">
+                                <button class="btn btn-secondary" id="import-data-btn">📤 Import Data</button>
+                                <input type="file" id="import-file" accept=".json" style="display: none;">
+                                <p class="setting-description">Import previously exported data</p>
+                            </div>
+                        </div>
+
+                        <!-- Statistics -->
+                        <div class="settings-section">
+                            <h3>📈 Statistics</h3>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <p class="stat-label">Total Expenses</p>
+                                    <p class="stat-value" id="settings-total-expenses">0</p>
+                                </div>
+                                <div class="stat-item">
+                                    <p class="stat-label">Total Income</p>
+                                    <p class="stat-value" id="settings-total-income">0</p>
+                                </div>
+                                <div class="stat-item">
+                                    <p class="stat-label">Categories</p>
+                                    <p class="stat-value" id="settings-total-categories">0</p>
+                                </div>
+                                <div class="stat-item">
+                                    <p class="stat-label">Payment Methods</p>
+                                    <p class="stat-value" id="settings-total-methods">0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Danger Zone -->
+                        <div class="settings-section danger-zone">
+                            <h3>⚠️ Danger Zone</h3>
+                            <div class="settings-group">
+                                <button class="btn btn-danger" id="reset-data-btn">🗑️ Reset All Data</button>
+                                <p class="setting-description">Delete all expenses, income, and settings (cannot be undone)</p>
+                            </div>
+                        </div>
+
+                        <!-- About -->
+                        <div class="settings-section">
+                            <h3>ℹ️ About</h3>
+                            <div class="about-info">
+                                <p><strong>Expense Tracker</strong> v2.0</p>
+                                <p>A powerful and beautiful expense tracking application</p>
+                                <p style="margin-top: 10px; color: var(--text-secondary); font-size: 12px;">
+                                    © 2025 Expense Tracker. All rights reserved.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Dashboard Period Filter -->
+    <div id="dashboard-filter" style="display: none; position: fixed; top: 100px; right: 40px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 100;">
+        <select id="dashboard-period" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="yearly">Yearly</option>
+            <option value="last_5_years">Last 5 Years</option>
+        </select>
+    </div>
+
+    <!-- Add/Edit Expense Modal -->
+    <div id="expense-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Add Expense</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="expense-form">
+                <div class="form-group">
+                    <label>Amount *</label>
+                    <input type="number" id="expense-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Category *</label>
+                    <select id="expense-category" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="expense-description">
+                </div>
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="expense-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Payment Method *</label>
+                    <select id="expense-payment" required>
+                        <option value="">Select Payment Method</option>
+                        <option value="credit_card">Credit Card</option>
+                        <option value="debit_card">Debit Card</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cash">Cash</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Card/Account Name *</label>
+                    <select id="expense-card" required>
+                        <option value="">Select Card/Account</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Frequency</label>
+                    <select id="expense-frequency">
+                        <option value="once">Once</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="expense-recurring">
+                        Recurring Expense
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="expense-notes" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Expense</button>
+                    <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="category-modal-title">Add Category</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="category-form">
+                <div class="form-group">
+                    <label>Category Name *</label>
+                    <input type="text" id="category-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Icon (Emoji) *</label>
+                    <input type="text" id="category-icon" placeholder="e.g., 🍔" required>
+                </div>
+                <div class="form-group">
+                    <label>Color (Hex) *</label>
+                    <input type="color" id="category-color" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Category</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('category-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Income Modal -->
+    <div id="income-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="income-modal-title">Add Income</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="income-form">
+                <div class="form-group">
+                    <label>Amount *</label>
+                    <input type="number" id="income-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Source *</label>
+                    <input type="text" id="income-source" placeholder="e.g., Salary, Freelance" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="income-description">
+                </div>
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="income-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Frequency</label>
+                    <select id="income-frequency">
+                        <option value="once">Once</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="income-recurring">
+                        Recurring Income
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="income-notes" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Income</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('income-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Payment Method Modal -->
+    <div id="payment-method-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="payment-method-modal-title">Add Payment Method</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="payment-method-form">
+                <div class="form-group">
+                    <label>Method Name *</label>
+                    <input type="text" id="payment-method-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Type *</label>
+                    <select id="payment-method-type" required>
+                        <option value="">Select Type</option>
+                        <option value="card">Card</option>
+                        <option value="bank">Bank</option>
+                        <option value="cash">Cash</option>
+                        <option value="digital_wallet">Digital Wallet</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Icon (Emoji)</label>
+                    <input type="text" id="payment-method-icon" placeholder="e.g., 💳">
+                </div>
+                <div class="form-group">
+                    <label>Color (Hex)</label>
+                    <input type="color" id="payment-method-color">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Payment Method</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('payment-method-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Card Modal -->
+    <div id="card-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="card-modal-title">Add Card</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="card-form">
+                <div class="form-group">
+                    <label>Card Name *</label>
+                    <input type="text" id="card-name" placeholder="e.g., My Visa" required>
+                </div>
+                <div class="form-group">
+                    <label>Card Type *</label>
+                    <select id="card-type" required>
+                        <option value="">Select Type</option>
+                        <option value="credit">Credit Card</option>
+                        <option value="debit">Debit Card</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Provider *</label>
+                    <input type="text" id="card-provider" placeholder="e.g., Visa, Mastercard" required>
+                </div>
+                <div class="form-group">
+                    <label>Last 4 Digits</label>
+                    <input type="text" id="card-last-four" placeholder="1234" maxlength="4">
+                </div>
+                <div class="form-group">
+                    <label>Bank Name</label>
+                    <input type="text" id="card-bank" placeholder="e.g., Chase">
+                </div>
+                <div class="form-group">
+                    <label>Expiry Date (MM/YY)</label>
+                    <input type="text" id="card-expiry" placeholder="12/25">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Card</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('card-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Debt Modal -->
+    <div id="debt-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="debt-modal-title">Add Debt</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="debt-form">
+                <div class="form-group">
+                    <label>Debt Name *</label>
+                    <input type="text" id="debt-name" placeholder="e.g., Car Loan, Credit Card" required>
+                </div>
+                <div class="form-group">
+                    <label>Debt Type *</label>
+                    <select id="debt-type" required>
+                        <option value="">Select Type</option>
+                        <option value="car_loan">Car Loan</option>
+                        <option value="home_loan">Home Loan</option>
+                        <option value="credit_card">Credit Card</option>
+                        <option value="student_loan">Student Loan</option>
+                        <option value="personal_loan">Personal Loan</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group" id="card-selection-group" style="display: none;">
+                    <label>Select Your Card *</label>
+                    <select id="debt-card-id">
+                        <option value="">Select a Card</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Creditor/Bank Name</label>
+                    <input type="text" id="debt-creditor" placeholder="e.g., Chase Bank">
+                </div>
+                <div class="form-group">
+                    <label>Original Amount *</label>
+                    <input type="number" id="debt-original-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Current Balance *</label>
+                    <input type="number" id="debt-current-balance" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Minimum Monthly Payment</label>
+                    <input type="number" id="debt-min-payment" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Interest Rate (%)</label>
+                    <input type="number" id="debt-interest-rate" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Due Date (Day of Month)</label>
+                    <input type="number" id="debt-due-date" min="1" max="31" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" id="debt-start-date">
+                </div>
+                <div class="form-group">
+                    <label>Target Payoff Date</label>
+                    <input type="date" id="debt-payoff-date">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="debt-notes" placeholder="Add any notes about this debt"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" onclick="app.saveDebt()">Save Debt</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('debt-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Debt Payment Modal -->
+    <div id="debt-payment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Make Debt Payment</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="debt-payment-form">
+                <input type="hidden" id="payment-debt-id">
+                <div class="form-group">
+                    <label>Debt</label>
+                    <div id="payment-debt-name" style="font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Current Balance</label>
+                    <div id="payment-current-balance" style="font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Payment Amount *</label>
+                    <input type="number" id="payment-amount" step="0.01" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" onclick="app.makeDebtPayment()">Record Payment</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('debt-payment-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+
