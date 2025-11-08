@@ -85,19 +85,23 @@ class ExpenseAPI {
 
   // Expenses
   static async getExpenses() {
-    const response = await fetch(`${API_BASE}/expenses`);
+    const response = await fetch(`${API_BASE}/expenses`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getExpenseById(id) {
-    const response = await fetch(`${API_BASE}/expenses/${id}`);
+    const response = await fetch(`${API_BASE}/expenses/${id}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async createExpense(data) {
     const response = await fetch(`${API_BASE}/expenses`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(data)
     });
     return response.json();
@@ -106,7 +110,7 @@ class ExpenseAPI {
   static async updateExpense(id, data) {
     const response = await fetch(`${API_BASE}/expenses/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(data)
     });
     return response.json();
@@ -114,26 +118,31 @@ class ExpenseAPI {
 
   static async deleteExpense(id) {
     const response = await fetch(`${API_BASE}/expenses/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
     });
     return response.json();
   }
 
   static async getExpensesByDateRange(startDate, endDate) {
-    const response = await fetch(`${API_BASE}/expenses/filter/daterange?startDate=${startDate}&endDate=${endDate}`);
+    const response = await fetch(`${API_BASE}/expenses/filter/daterange?startDate=${startDate}&endDate=${endDate}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   // Categories
   static async getCategories() {
-    const response = await fetch(`${API_BASE}/categories`);
+    const response = await fetch(`${API_BASE}/categories`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async addCategory(data) {
     const response = await fetch(`${API_BASE}/categories`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(data)
     });
     return response.json();
@@ -141,70 +150,94 @@ class ExpenseAPI {
 
   // Reports
   static async getCategorySummary(startDate, endDate) {
-    const response = await fetch(`${API_BASE}/reports/summary/category?startDate=${startDate}&endDate=${endDate}`);
+    const response = await fetch(`${API_BASE}/reports/summary/category?startDate=${startDate}&endDate=${endDate}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getPaymentSummary(startDate, endDate) {
-    const response = await fetch(`${API_BASE}/reports/summary/payment?startDate=${startDate}&endDate=${endDate}`);
+    const response = await fetch(`${API_BASE}/reports/summary/payment?startDate=${startDate}&endDate=${endDate}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getDailyTrend(startDate, endDate) {
-    const response = await fetch(`${API_BASE}/reports/trend/daily?startDate=${startDate}&endDate=${endDate}`);
+    const response = await fetch(`${API_BASE}/reports/trend/daily?startDate=${startDate}&endDate=${endDate}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getMonthlyTrend(year) {
-    const response = await fetch(`${API_BASE}/reports/trend/monthly?year=${year}`);
+    const response = await fetch(`${API_BASE}/reports/trend/monthly?year=${year}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getTopExpenses(limit = 10) {
-    const response = await fetch(`${API_BASE}/reports/top?limit=${limit}`);
+    const response = await fetch(`${API_BASE}/reports/top?limit=${limit}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getStatistics(startDate, endDate) {
-    const response = await fetch(`${API_BASE}/reports/statistics?startDate=${startDate}&endDate=${endDate}`);
+    const response = await fetch(`${API_BASE}/reports/statistics?startDate=${startDate}&endDate=${endDate}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getWeeklyTrend(startDate, endDate) {
-    const response = await fetch(`${API_BASE}/reports/trend/weekly?startDate=${startDate}&endDate=${endDate}`);
+    const response = await fetch(`${API_BASE}/reports/trend/weekly?startDate=${startDate}&endDate=${endDate}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getYearlyTrend() {
-    const response = await fetch(`${API_BASE}/reports/trend/yearly`);
+    const response = await fetch(`${API_BASE}/reports/trend/yearly`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getLast5YearsTrend() {
-    const response = await fetch(`${API_BASE}/reports/trend/last-5-years`);
+    const response = await fetch(`${API_BASE}/reports/trend/last-5-years`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getSummaryByPeriod(period) {
-    const response = await fetch(`${API_BASE}/reports/summary/by-period?period=${period}`);
+    const response = await fetch(`${API_BASE}/reports/summary/by-period?period=${period}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   // Income
   static async getIncome() {
-    const response = await fetch(`${API_BASE}/income`);
+    const response = await fetch(`${API_BASE}/income`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async getIncomeById(id) {
-    const response = await fetch(`${API_BASE}/income/${id}`);
+    const response = await fetch(`${API_BASE}/income/${id}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   static async createIncome(data) {
     const response = await fetch(`${API_BASE}/income`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(data)
     });
     return response.json();
@@ -213,7 +246,7 @@ class ExpenseAPI {
   static async updateIncome(id, data) {
     const response = await fetch(`${API_BASE}/income/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(data)
     });
     return response.json();
@@ -221,7 +254,8 @@ class ExpenseAPI {
 
   static async deleteIncome(id) {
     const response = await fetch(`${API_BASE}/income/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
     });
     return response.json();
   }
@@ -472,13 +506,17 @@ class ExpenseAPI {
 
   // Get activity statistics
   static async getActivityStatistics() {
-    const response = await fetch(`${API_BASE}/activity-log/stats/all`);
+    const response = await fetch(`${API_BASE}/activity-log/stats/all`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
   // Get activity logs by type
   static async getActivityLogsByType(type) {
-    const response = await fetch(`${API_BASE}/activity-log/type/${type}`);
+    const response = await fetch(`${API_BASE}/activity-log/type/${type}`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
