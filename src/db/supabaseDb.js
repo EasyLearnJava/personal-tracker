@@ -53,109 +53,7 @@ const writeCategories = async (userId, categories) => {
   }
 };
 
-// ==================== INCOME ====================
-const readIncome = async (userId) => {
-  try {
-    const { data, error } = await supabaseClient
-      .from('income')
-      .select('*')
-      .eq('user_id', userId)
-      .order('income_date', { ascending: false });
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error reading income:', error);
-    return [];
-  }
-};
 
-const writeIncome = async (userId, income) => {
-  try {
-    return true;
-  } catch (error) {
-    console.error('Error writing income:', error);
-    return false;
-  }
-};
-
-// ==================== PAYMENT METHODS ====================
-const readPaymentMethods = async (userId) => {
-  try {
-    const { data, error } = await supabaseClient
-      .from('payment_methods')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error reading payment methods:', error);
-    return [];
-  }
-};
-
-const writePaymentMethods = async (userId, methods) => {
-  try {
-    return true;
-  } catch (error) {
-    console.error('Error writing payment methods:', error);
-    return false;
-  }
-};
-
-// ==================== CARDS ====================
-const readCards = async (userId) => {
-  try {
-    const { data, error } = await supabaseClient
-      .from('cards')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error reading cards:', error);
-    return [];
-  }
-};
-
-const writeCards = async (userId, cards) => {
-  try {
-    return true;
-  } catch (error) {
-    console.error('Error writing cards:', error);
-    return false;
-  }
-};
-
-// ==================== DEBTS ====================
-const readDebts = async (userId) => {
-  try {
-    const { data, error } = await supabaseClient
-      .from('debts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error reading debts:', error);
-    return [];
-  }
-};
-
-const writeDebts = async (userId, debts) => {
-  try {
-    return true;
-  } catch (error) {
-    console.error('Error writing debts:', error);
-    return false;
-  }
-};
 
 // ==================== INITIALIZATION ====================
 const initializeDatabase = async () => {
@@ -174,14 +72,6 @@ module.exports = {
   writeExpenses,
   readCategories,
   writeCategories,
-  readIncome,
-  writeIncome,
-  readPaymentMethods,
-  writePaymentMethods,
-  readCards,
-  writeCards,
-  readDebts,
-  writeDebts,
   supabaseClient,
   supabaseAdmin
 };
