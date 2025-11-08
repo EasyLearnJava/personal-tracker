@@ -11,6 +11,7 @@ class Income {
     this.isRecurring = data.isRecurring || false;
     this.recurringEndDate = data.recurringEndDate || null;
     this.notes = data.notes || '';
+    this.bankAccountId = data.bankAccountId || null; // Bank account to deposit to
     this.createdAt = data.createdAt || new Date().toISOString();
     this.updatedAt = data.updatedAt || new Date().toISOString();
   }
@@ -26,6 +27,7 @@ class Income {
       isRecurring: this.isRecurring,
       recurringEndDate: this.recurringEndDate,
       notes: this.notes,
+      bankAccountId: this.bankAccountId,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };

@@ -20,7 +20,10 @@ class UI {
     document.querySelectorAll('.nav-item').forEach(item => {
       item.classList.remove('active');
     });
-    document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
+    const activeItem = document.querySelector(`[data-view="${viewName}"]`);
+    if (activeItem) {
+      activeItem.classList.add('active');
+    }
 
     // Update page title
     const titles = {
@@ -28,9 +31,16 @@ class UI {
       expenses: 'Expenses',
       reports: 'Reports',
       categories: 'Categories',
+      'activity-log': 'Activity Log',
+      tasks: 'Tasks',
       settings: 'Settings'
     };
     document.getElementById('page-title').textContent = titles[viewName];
+
+    // Load data for specific views
+    if (viewName === 'activity-log') {
+      ActivityLogUI.loadActivityLog();
+    }
   }
 
   static formatCurrency(amount) {
@@ -84,13 +94,14 @@ class UI {
   static renderExpenseItem(expense, categories) {
     const category = categories.find(c => c.id === expense.category);
     const categoryIcon = category ? category.icon : '📌';
-    
+    const categoryName = category ? category.name : 'Expense';
+
     return `
       <div class="expense-item">
         <div class="expense-left">
           <div class="expense-icon">${categoryIcon}</div>
           <div class="expense-details">
-            <h4>${expense.description || 'Expense'}</h4>
+            <h4>${categoryName}</h4>
             <p>${UI.formatDate(expense.date)} • ${expense.cardName || expense.paymentMethod}</p>
           </div>
         </div>

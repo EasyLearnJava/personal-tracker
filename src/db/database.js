@@ -7,6 +7,10 @@ const INCOME_PATH = path.join(__dirname, '../../data/income.json');
 const PAYMENT_METHODS_PATH = path.join(__dirname, '../../data/paymentMethods.json');
 const CARDS_PATH = path.join(__dirname, '../../data/cards.json');
 const DEBTS_PATH = path.join(__dirname, '../../data/debts.json');
+const PAYMENT_HISTORY_PATH = path.join(__dirname, '../../data/paymentHistory.json');
+const BANK_ACCOUNTS_PATH = path.join(__dirname, '../../data/bankAccounts.json');
+const ACTIVITY_LOG_PATH = path.join(__dirname, '../../data/activityLog.json');
+const BUDGETS_PATH = path.join(__dirname, '../../data/budgets.json');
 
 // Ensure data directory exists
 const ensureDataDir = () => {
@@ -60,6 +64,22 @@ const initializeDatabase = () => {
 
   if (!fs.existsSync(DEBTS_PATH)) {
     fs.writeFileSync(DEBTS_PATH, JSON.stringify([], null, 2));
+  }
+
+  if (!fs.existsSync(PAYMENT_HISTORY_PATH)) {
+    fs.writeFileSync(PAYMENT_HISTORY_PATH, JSON.stringify([], null, 2));
+  }
+
+  if (!fs.existsSync(BANK_ACCOUNTS_PATH)) {
+    fs.writeFileSync(BANK_ACCOUNTS_PATH, JSON.stringify([], null, 2));
+  }
+
+  if (!fs.existsSync(ACTIVITY_LOG_PATH)) {
+    fs.writeFileSync(ACTIVITY_LOG_PATH, JSON.stringify([], null, 2));
+  }
+
+  if (!fs.existsSync(BUDGETS_PATH)) {
+    fs.writeFileSync(BUDGETS_PATH, JSON.stringify([], null, 2));
   }
 };
 
@@ -195,6 +215,94 @@ const writeDebts = (debts) => {
   }
 };
 
+// Read payment history
+const readPaymentHistory = () => {
+  try {
+    const data = fs.readFileSync(PAYMENT_HISTORY_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading payment history:', error);
+    return [];
+  }
+};
+
+// Write payment history
+const writePaymentHistory = (history) => {
+  try {
+    fs.writeFileSync(PAYMENT_HISTORY_PATH, JSON.stringify(history, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing payment history:', error);
+    return false;
+  }
+};
+
+// Read bank accounts
+const readBankAccounts = () => {
+  try {
+    const data = fs.readFileSync(BANK_ACCOUNTS_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading bank accounts:', error);
+    return [];
+  }
+};
+
+// Write bank accounts
+const writeBankAccounts = (accounts) => {
+  try {
+    fs.writeFileSync(BANK_ACCOUNTS_PATH, JSON.stringify(accounts, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing bank accounts:', error);
+    return false;
+  }
+};
+
+// Read activity log
+const readActivityLog = () => {
+  try {
+    const data = fs.readFileSync(ACTIVITY_LOG_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading activity log:', error);
+    return [];
+  }
+};
+
+// Write activity log
+const writeActivityLog = (log) => {
+  try {
+    fs.writeFileSync(ACTIVITY_LOG_PATH, JSON.stringify(log, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing activity log:', error);
+    return false;
+  }
+};
+
+// Read budgets
+const readBudgets = () => {
+  try {
+    const data = fs.readFileSync(BUDGETS_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading budgets:', error);
+    return [];
+  }
+};
+
+// Write budgets
+const writeBudgets = (budgets) => {
+  try {
+    fs.writeFileSync(BUDGETS_PATH, JSON.stringify(budgets, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing budgets:', error);
+    return false;
+  }
+};
+
 module.exports = {
   initializeDatabase,
   readExpenses,
@@ -208,6 +316,14 @@ module.exports = {
   readCards,
   writeCards,
   readDebts,
-  writeDebts
+  writeDebts,
+  readPaymentHistory,
+  writePaymentHistory,
+  readBankAccounts,
+  writeBankAccounts,
+  readActivityLog,
+  writeActivityLog,
+  readBudgets,
+  writeBudgets
 };
 

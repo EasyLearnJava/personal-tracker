@@ -1,6 +1,6 @@
-# Expense Tracker
+# Personal Tracker
 
-A powerful and feature-rich expense tracking application built with Node.js, Express, and Supabase.
+A powerful and feature-rich personal tracking application built with Node.js, Express, and Supabase. Extensible for future features beyond expense tracking.
 
 ## Features
 

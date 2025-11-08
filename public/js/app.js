@@ -1,4 +1,5 @@
 // ==================== AUTHENTICATION MANAGER ====================
+// ==================== AUTHENTICATION MANAGER ====================
 class AuthManager {
   static currentUser = null;
   static accessToken = null;
@@ -34,22 +35,28 @@ class AuthManager {
 
   static async login(email, password) {
     try {
+      console.log('AuthManager.login called with email:', email);
       const result = await ExpenseAPI.login(email, password);
+      console.log('Login result:', result);
+
       if (result.success) {
         this.currentUser = result.user;
         this.accessToken = result.accessToken;
         localStorage.setItem('accessToken', result.accessToken);
         localStorage.setItem('user', JSON.stringify(result.user));
+        console.log('Login successful, user:', result.user);
         UI.showNotification('Login successful!', 'success');
         this.showApp();
         return true;
       } else {
-        UI.showNotification(result.error || 'Login failed', 'error');
+        const errorMsg = result.error || 'Login failed';
+        console.error('Login failed:', errorMsg);
+        UI.showNotification(errorMsg, 'error');
         return false;
       }
     } catch (error) {
       console.error('Login error:', error);
-      UI.showNotification('Login failed', 'error');
+      UI.showNotification('Login failed: ' + error.message, 'error');
       return false;
     }
   }
@@ -117,20 +124,22 @@ class ExpenseTrackerApp {
   constructor() {
     this.expenses = [];
     this.categories = [];
-    this.income = [];
-    this.paymentMethods = [];
-    this.cards = [];
-    this.debts = [];
+    this.tasks = [];
+    this.budgets = [];
+    this.currentBudget = null;
+    this.currentBudgetMonth = this.getCurrentMonth();
     this.charts = {};
     this.currentEditingId = null;
     this.currentEditingType = null;
     this.dashboardPeriod = 'monthly';
+    this.taskManager = new TaskManager(this);
     this.init();
   }
 
   async init() {
     this.setupEventListeners();
     await this.loadData();
+    await this.taskManager.init();
     this.loadDashboard();
   }
 
@@ -138,13 +147,10 @@ class ExpenseTrackerApp {
     try {
       this.expenses = await ExpenseAPI.getExpenses();
       this.categories = await ExpenseAPI.getCategories();
-      this.income = await ExpenseAPI.getIncome();
-      this.paymentMethods = await ExpenseAPI.getPaymentMethods();
-      this.cards = await ExpenseAPI.getCards();
-      this.debts = await ExpenseAPI.getDebts();
+      this.budgets = await ExpenseAPI.getBudgets();
       this.populateCategorySelects();
-      this.populatePaymentMethodSelects();
-      this.populateCardSelects();
+      this.populateIncomeSourceSelects();
+      this.populateBudgetMonthSelect();
     } catch (error) {
       console.error('Error loading data:', error);
       UI.showNotification('Error loading data', 'error');
@@ -157,8 +163,10 @@ class ExpenseTrackerApp {
       item.addEventListener('click', (e) => {
         e.preventDefault();
         const view = item.dataset.view;
-        UI.switchView(view);
-        this.loadView(view);
+        if (view) { // Only process if view is defined (skip section titles)
+          UI.switchView(view);
+          this.loadView(view);
+        }
       });
     });
 
@@ -172,6 +180,14 @@ class ExpenseTrackerApp {
       const today = new Date();
       const localDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       document.getElementById('expense-date').value = localDate.toISOString().split('T')[0];
+      // Populate categories and income sources from the current budget
+      this.populateCategorySelects();
+      this.populateIncomeSourceSelects();
+
+      // Add validation listeners
+      document.getElementById('expense-amount').addEventListener('change', () => this.validateExpenseIncomeSource());
+      document.getElementById('expense-income-source').addEventListener('change', () => this.validateExpenseIncomeSource());
+
       UI.showModal('expense-modal');
     });
 
@@ -184,41 +200,7 @@ class ExpenseTrackerApp {
       UI.showModal('category-modal');
     });
 
-    // Add income button
-    document.getElementById('add-income-btn').addEventListener('click', () => {
-      this.currentEditingId = null;
-      this.currentEditingType = 'income';
-      document.getElementById('income-modal-title').textContent = 'Add Income';
-      document.getElementById('income-form').reset();
-      // Set date to today in local timezone (not UTC)
-      const today = new Date();
-      const localDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      document.getElementById('income-date').value = localDate.toISOString().split('T')[0];
-      UI.showModal('income-modal');
-    });
 
-    // Add payment method button
-    document.getElementById('add-payment-method-btn').addEventListener('click', () => {
-      this.currentEditingId = null;
-      this.currentEditingType = 'payment-method';
-      document.getElementById('payment-method-modal-title').textContent = 'Add Payment Method';
-      document.getElementById('payment-method-form').reset();
-      UI.showModal('payment-method-modal');
-    });
-
-    // Add card button
-    document.getElementById('add-card-btn').addEventListener('click', () => {
-      this.currentEditingId = null;
-      this.currentEditingType = 'card';
-      document.getElementById('card-modal-title').textContent = 'Add Card';
-      document.getElementById('card-form').reset();
-      UI.showModal('card-modal');
-    });
-
-    // Add debt button
-    document.getElementById('add-debt-btn').addEventListener('click', () => {
-      this.openDebtModal();
-    });
 
     // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -239,20 +221,68 @@ class ExpenseTrackerApp {
       this.saveCategory();
     });
 
-    document.getElementById('income-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.saveIncome();
+    // Budget event listeners
+    document.getElementById('add-budget-category-btn').addEventListener('click', () => {
+      this.currentEditingBudgetId = null;
+      this.currentEditingItemId = null;
+      document.getElementById('budget-item-modal-title').textContent = 'Add Budget Category';
+      document.getElementById('budget-item-form').reset();
+      document.getElementById('budget-item-group').value = '';
+      document.getElementById('budget-item-new-group').style.display = 'none';
+      UI.showModal('budget-item-modal');
     });
 
-    document.getElementById('payment-method-form').addEventListener('submit', (e) => {
+    document.getElementById('budget-item-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      this.savePaymentMethod();
+      this.saveBudgetItem();
     });
 
-    document.getElementById('card-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.saveCard();
+    // Add Spent form submission
+    const addSpentForm = document.getElementById('add-spent-form');
+    if (addSpentForm) {
+      addSpentForm.addEventListener('submit', (e) => this.handleAddSpentSubmit(e));
+
+      // Add validation on amount change
+      document.getElementById('add-spent-amount').addEventListener('change', () => this.validateIncomeSource());
+    }
+
+    // Handle group selection change
+    document.getElementById('budget-item-group').addEventListener('change', (e) => {
+      const newGroupInput = document.getElementById('budget-item-new-group');
+      if (e.target.value === '__new__') {
+        newGroupInput.style.display = 'block';
+        newGroupInput.required = true;
+        newGroupInput.focus();
+      } else {
+        newGroupInput.style.display = 'none';
+        newGroupInput.required = false;
+      }
     });
+
+    document.getElementById('copy-budget-btn').addEventListener('click', () => {
+      this.copyBudgetToNextMonth();
+    });
+
+    document.getElementById('prev-month-btn').addEventListener('click', () => {
+      this.previousBudgetMonth();
+    });
+
+    document.getElementById('next-month-btn').addEventListener('click', () => {
+      this.nextBudgetMonth();
+    });
+
+    document.getElementById('budget-month-select').addEventListener('change', (e) => {
+      this.currentBudgetMonth = e.target.value;
+      this.loadBudgetView();
+    });
+
+    // Create budget button
+    const createBudgetBtn = document.getElementById('create-budget-btn');
+    if (createBudgetBtn) {
+      createBudgetBtn.addEventListener('click', () => {
+        this.createNewBudget();
+      });
+    }
 
     // Filters
     document.getElementById('apply-filters').addEventListener('click', () => {
@@ -275,11 +305,6 @@ class ExpenseTrackerApp {
     // Reports filter
     document.getElementById('reports-filter-period').addEventListener('change', () => {
       this.loadReportsView();
-    });
-
-    // Income filter
-    document.getElementById('income-filter-period').addEventListener('change', () => {
-      this.loadIncomeView();
     });
 
     // Settings buttons
@@ -313,16 +338,37 @@ class ExpenseTrackerApp {
   populateCategorySelects() {
     const categorySelect = document.getElementById('expense-category');
     const filterSelect = document.getElementById('filter-category');
-    
+
     categorySelect.innerHTML = '<option value="">Select Category</option>';
     filterSelect.innerHTML = '<option value="">All Categories</option>';
 
-    this.categories.forEach(cat => {
-      const option1 = document.createElement('option');
-      option1.value = cat.id;
-      option1.textContent = `${cat.icon} ${cat.name}`;
-      categorySelect.appendChild(option1);
+    // Get expense categories from the current budget
+    // If currentBudget is not set, find it based on currentBudgetMonth
+    let budget = this.currentBudget;
+    if (!budget) {
+      budget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+    }
 
+    const expenseCategoryNames = new Set();
+    if (budget && budget.items) {
+      budget.items.forEach(item => {
+        // Only add non-income categories (income categories are in "Income" group)
+        if (item.group !== 'Income') {
+          expenseCategoryNames.add(item.category);
+        }
+      });
+    }
+
+    this.categories.forEach(cat => {
+      // For expense category select, only show expense categories
+      if (expenseCategoryNames.has(cat.name)) {
+        const option1 = document.createElement('option');
+        option1.value = cat.id;
+        option1.textContent = `${cat.icon} ${cat.name}`;
+        categorySelect.appendChild(option1);
+      }
+
+      // For filter, show all categories
       const option2 = document.createElement('option');
       option2.value = cat.id;
       option2.textContent = `${cat.icon} ${cat.name}`;
@@ -330,36 +376,34 @@ class ExpenseTrackerApp {
     });
   }
 
-  populatePaymentMethodSelects() {
-    const paymentSelect = document.getElementById('expense-payment');
-    paymentSelect.innerHTML = '<option value="">Select Payment Method</option>';
 
-    this.paymentMethods.forEach(method => {
-      const option = document.createElement('option');
-      option.value = method.id;
-      option.textContent = `${method.icon} ${method.name}`;
-      paymentSelect.appendChild(option);
+
+  populateIncomeSourceSelects() {
+    const incomeSourceSelect = document.getElementById('expense-income-source');
+    if (!incomeSourceSelect) return;
+
+    incomeSourceSelect.innerHTML = '<option value="">Select Income Source</option>';
+
+    // Get income sources from the current budget
+    const currentBudget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+    if (!currentBudget) return;
+
+    const incomeItems = currentBudget.items.filter(i => i.group === 'Income');
+    incomeItems.forEach(income => {
+      const available = income.budgetAmount - income.actualAmount;
+      // Only show income sources with available balance > 0
+      if (available > 0) {
+        const option = document.createElement('option');
+        option.value = income.category; // Store the category name as the value
+        option.textContent = `${income.category} (Available: ${UI.formatCurrency(available)})`;
+        option.dataset.available = available;
+        option.dataset.incomeId = income.id;
+        incomeSourceSelect.appendChild(option);
+      }
     });
   }
 
-  populateCardSelects() {
-    const cardSelect = document.getElementById('expense-card');
-    cardSelect.innerHTML = '<option value="">Select Card/Account</option>';
 
-    this.cards.forEach(card => {
-      const option = document.createElement('option');
-      option.value = card.name;
-      option.textContent = `${card.name} (${card.provider}) •••• ${card.lastFourDigits || '****'}`;
-      option.title = `${card.bankName || 'Bank'} - ${card.cardType}`;
-      cardSelect.appendChild(option);
-    });
-
-    // Add Cash option
-    const cashOption = document.createElement('option');
-    cashOption.value = 'Cash';
-    cashOption.textContent = '💵 Cash';
-    cardSelect.appendChild(cashOption);
-  }
 
   async loadView(viewName) {
     switch (viewName) {
@@ -375,17 +419,17 @@ class ExpenseTrackerApp {
       case 'categories':
         this.loadCategoriesView();
         break;
-      case 'income':
-        this.loadIncomeView();
+      case 'budget':
+        this.loadBudgetView();
         break;
-      case 'payment-methods':
-        this.loadPaymentMethodsView();
+      case 'payment-history':
+        this.loadPaymentHistoryView();
         break;
-      case 'cards':
-        this.loadCardsView();
+      case 'activity-log':
+        this.loadActivityLogView();
         break;
-      case 'debts':
-        this.loadDebtsView();
+      case 'bank-accounts':
+        this.loadBankAccountsView();
         break;
       case 'settings':
         this.loadSettingsView();
@@ -470,7 +514,6 @@ class ExpenseTrackerApp {
 
       await this.loadCharts(dateRange.start, dateRange.end);
       this.loadUpcomingExpenses();
-      this.loadUpcomingIncome();
     } catch (error) {
       console.error('Error loading dashboard:', error);
     }
@@ -497,32 +540,6 @@ class ExpenseTrackerApp {
               <div class="upcoming-item-date">Next: ${UI.formatDate(nextDate)}</div>
             </div>
             <div class="upcoming-item-amount">${UI.formatCurrency(expense.amount)}</div>
-          </div>
-        `;
-      })
-      .join('');
-  }
-
-  loadUpcomingIncome() {
-    const recurringIncome = this.income.filter(i => i.isRecurring);
-    const upcomingList = document.getElementById('upcoming-income-list');
-
-    if (recurringIncome.length === 0) {
-      upcomingList.innerHTML = '<div class="upcoming-empty"><p>No upcoming recurring income</p></div>';
-      return;
-    }
-
-    upcomingList.innerHTML = recurringIncome
-      .slice(0, 5)
-      .map(income => {
-        const nextDate = this.calculateNextOccurrence(income.date, income.frequency);
-        return `
-          <div class="upcoming-item">
-            <div class="upcoming-item-left">
-              <div class="upcoming-item-title">💰 ${income.source}</div>
-              <div class="upcoming-item-date">Next: ${UI.formatDate(nextDate)}</div>
-            </div>
-            <div class="upcoming-item-amount">${UI.formatCurrency(income.amount)}</div>
           </div>
         `;
       })
@@ -606,15 +623,18 @@ class ExpenseTrackerApp {
 
   renderPaymentChart(data) {
     const ctx = document.getElementById('paymentChart').getContext('2d');
-    
+
     if (this.charts.payment) {
       this.charts.payment.destroy();
     }
 
+    // Map payment method to labels
+    const labels = data.map(d => d.paymentMethod);
+
     this.charts.payment = new Chart(ctx, {
       type: 'pie',
       data: {
-        labels: data.map(d => d.paymentMethod),
+        labels: labels,
         datasets: [{
           data: data.map(d => d.total),
           backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#4facfe']
@@ -704,7 +724,6 @@ class ExpenseTrackerApp {
     try {
       const categorySummary = await ExpenseAPI.getCategorySummary(dateRange.start, dateRange.end);
       const paymentSummary = await ExpenseAPI.getPaymentSummary(dateRange.start, dateRange.end);
-      const cardSummary = await ExpenseAPI.getCardSummary(dateRange.start, dateRange.end);
 
       document.getElementById('category-report').innerHTML = categorySummary
         .map(item => {
@@ -719,10 +738,6 @@ class ExpenseTrackerApp {
 
       document.getElementById('payment-report').innerHTML = paymentSummary
         .map(item => UI.renderReportRow(item.paymentMethod, item.total))
-        .join('');
-
-      document.getElementById('card-report').innerHTML = cardSummary
-        .map(item => UI.renderReportRow(item.cardName || 'Unknown', item.total))
         .join('');
     } catch (error) {
       console.error('Error loading reports:', error);
@@ -746,90 +761,34 @@ class ExpenseTrackerApp {
       .join('');
   }
 
-  async loadIncomeView() {
-    const period = document.getElementById('income-filter-period').value || 'current_month';
-    const dateRange = this.getDateRangeByPeriod(period);
 
-    let incomeList = this.income;
-
-    // Filter by date range
-    incomeList = incomeList.filter(inc => {
-      const incDate = new Date(inc.date);
-      return incDate >= new Date(dateRange.start) && incDate <= new Date(dateRange.end);
-    });
-
-    const incomeListElement = document.getElementById('income-list');
-    incomeListElement.innerHTML = incomeList
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .map(inc => `
-        <div class="income-item">
-          <div class="income-item-header">
-            <div class="income-source">💰 ${inc.source}</div>
-            <div class="income-amount">${UI.formatCurrency(inc.amount)}</div>
-          </div>
-          <div class="income-details">
-            <p>${UI.formatDate(inc.date)} • ${inc.frequency}</p>
-            ${inc.description ? `<p>${inc.description}</p>` : ''}
-          </div>
-          <div class="income-actions">
-            <button class="btn btn-secondary" style="flex: 1;" onclick="app.editIncome('${inc.id}')">Edit</button>
-            <button class="btn btn-secondary" style="flex: 1; background: #ef4444; color: white;" onclick="app.deleteIncome('${inc.id}')">Delete</button>
-          </div>
-        </div>
-      `)
-      .join('');
-  }
-
-  async loadPaymentMethodsView() {
-    const methodsList = document.getElementById('payment-methods-list');
-    methodsList.innerHTML = this.paymentMethods
-      .map(method => `
-        <div class="payment-method-item">
-          <div class="payment-method-icon">${method.icon}</div>
-          <div class="payment-method-name">${method.name}</div>
-          <div class="payment-method-type">${method.type}</div>
-          <div class="payment-method-actions">
-            <button class="btn btn-secondary" style="flex: 1;" onclick="app.editPaymentMethod('${method.id}')">Edit</button>
-            <button class="btn btn-secondary" style="flex: 1; background: #ef4444; color: white;" onclick="app.deletePaymentMethod('${method.id}')">Delete</button>
-          </div>
-        </div>
-      `)
-      .join('');
-  }
-
-  async loadCardsView() {
-    const cardsList = document.getElementById('cards-list');
-    cardsList.innerHTML = this.cards
-      .map(card => `
-        <div class="card-item">
-          <div class="card-item-header">
-            <div>
-              <div class="card-name">${card.name}</div>
-              <div class="card-provider">${card.provider}</div>
-            </div>
-          </div>
-          <div class="card-details">
-            <p>${card.bankName || 'Bank'} • ${card.cardType}</p>
-            <p>Expires: ${card.expiryDate || 'N/A'}</p>
-          </div>
-          <div class="card-last-four">•••• ${card.lastFourDigits || '****'}</div>
-          <div class="card-actions">
-            <button class="edit-btn" style="flex: 1;" onclick="app.editCard('${card.id}')">Edit</button>
-            <button class="delete-btn" style="flex: 1;" onclick="app.deleteCard('${card.id}')">Delete</button>
-          </div>
-        </div>
-      `)
-      .join('');
-  }
 
   async saveExpense() {
+    const incomeSource = document.getElementById('expense-income-source').value;
+    const amount = parseFloat(document.getElementById('expense-amount').value);
+
+    if (!incomeSource) {
+      UI.showNotification('Please select an income source', 'error');
+      return;
+    }
+
+    // Validate amount against available balance
+    const sourceSelect = document.getElementById('expense-income-source');
+    const selectedOption = sourceSelect.options[sourceSelect.selectedIndex];
+    const available = parseFloat(selectedOption.dataset.available) || 0;
+
+    if (amount > available) {
+      UI.showNotification(`Amount exceeds available balance of ${UI.formatCurrency(available)}`, 'error');
+      return;
+    }
+
     const expenseData = {
-      amount: parseFloat(document.getElementById('expense-amount').value),
+      amount: amount,
       category: parseInt(document.getElementById('expense-category').value),
       description: document.getElementById('expense-description').value,
       date: document.getElementById('expense-date').value,
-      paymentMethod: document.getElementById('expense-payment').value,
-      cardName: document.getElementById('expense-card').value,
+      paymentMethod: incomeSource, // Store income source as payment method
+      cardName: incomeSource, // Store income source as card name for backward compatibility
       frequency: document.getElementById('expense-frequency').value,
       isRecurring: document.getElementById('expense-recurring').checked,
       notes: document.getElementById('expense-notes').value
@@ -837,16 +796,55 @@ class ExpenseTrackerApp {
 
     try {
       if (this.currentEditingId) {
+        // For update, get the old expense
+        const oldExpense = this.expenses.find(e => e.id === this.currentEditingId);
+
+        console.log('UPDATE EXPENSE - Old expense:', oldExpense);
+        console.log('UPDATE EXPENSE - New data:', expenseData);
+
         await ExpenseAPI.updateExpense(this.currentEditingId, expenseData);
+
+        // Update budget: first restore old amount from old income source, then deduct new amount from new income source
+        if (oldExpense) {
+          console.log('Step 1: Restoring old amount from old income source');
+          // Step 1: Restore the old amount to the old income source
+          await this.updateBudgetFromExpense(oldExpense, 'delete');
+
+          console.log('Step 2: Reloading budget data only');
+          // Step 2: Reload ONLY budget data to get fresh state after Step 1
+          this.budgets = await ExpenseAPI.getBudgets();
+
+          console.log('Step 3: Deducting new amount from new income source');
+          // Step 3: Deduct the new amount from the new income source
+          const updatedExpense = { ...oldExpense, ...expenseData };
+          console.log('Updated expense object:', updatedExpense);
+          await this.updateBudgetFromExpense(updatedExpense, 'add');
+        }
+
         UI.showNotification('Expense updated successfully');
       } else {
-        await ExpenseAPI.createExpense(expenseData);
+        console.log('Creating new expense with data:', expenseData);
+        const result = await ExpenseAPI.createExpense(expenseData);
+        console.log('Create expense result:', result);
+
+        // Update budget for new expense
+        // The API returns the expense directly, not wrapped in { data: expense }
+        const expense = result && result.data ? result.data : result;
+        if (expense) {
+          console.log('Updating budget with expense:', expense);
+          await this.updateBudgetFromExpense(expense, 'add');
+        } else {
+          console.warn('No expense in result:', result);
+        }
+
         UI.showNotification('Expense added successfully');
       }
 
+      // Reload data from server to get the latest state
       await this.loadData();
       this.loadDashboard();
       this.loadExpensesView();
+      this.loadBudgetView();
       UI.hideModal('expense-modal');
     } catch (error) {
       console.error('Error saving expense:', error);
@@ -879,104 +877,32 @@ class ExpenseTrackerApp {
     }
   }
 
-  async saveIncome() {
-    const incomeData = {
-      amount: parseFloat(document.getElementById('income-amount').value),
-      source: document.getElementById('income-source').value,
-      description: document.getElementById('income-description').value,
-      date: document.getElementById('income-date').value,
-      frequency: document.getElementById('income-frequency').value,
-      isRecurring: document.getElementById('income-recurring').checked,
-      notes: document.getElementById('income-notes').value
-    };
 
-    try {
-      if (this.currentEditingId) {
-        await ExpenseAPI.updateIncome(this.currentEditingId, incomeData);
-        UI.showNotification('Income updated successfully');
-      } else {
-        await ExpenseAPI.createIncome(incomeData);
-        UI.showNotification('Income added successfully');
-      }
-
-      await this.loadData();
-      this.loadIncomeView();
-      UI.hideModal('income-modal');
-    } catch (error) {
-      console.error('Error saving income:', error);
-      UI.showNotification('Error saving income', 'error');
-    }
-  }
-
-  async savePaymentMethod() {
-    const methodData = {
-      name: document.getElementById('payment-method-name').value,
-      type: document.getElementById('payment-method-type').value,
-      icon: document.getElementById('payment-method-icon').value || '💳',
-      color: document.getElementById('payment-method-color').value || '#667eea'
-    };
-
-    try {
-      if (this.currentEditingId) {
-        await ExpenseAPI.updatePaymentMethod(this.currentEditingId, methodData);
-        UI.showNotification('Payment method updated successfully');
-      } else {
-        await ExpenseAPI.createPaymentMethod(methodData);
-        UI.showNotification('Payment method added successfully');
-      }
-
-      await this.loadData();
-      this.loadPaymentMethodsView();
-      UI.hideModal('payment-method-modal');
-    } catch (error) {
-      console.error('Error saving payment method:', error);
-      UI.showNotification('Error saving payment method', 'error');
-    }
-  }
-
-  async saveCard() {
-    const cardData = {
-      name: document.getElementById('card-name').value,
-      cardType: document.getElementById('card-type').value,
-      provider: document.getElementById('card-provider').value,
-      lastFourDigits: document.getElementById('card-last-four').value,
-      bankName: document.getElementById('card-bank').value,
-      expiryDate: document.getElementById('card-expiry').value
-    };
-
-    try {
-      if (this.currentEditingId) {
-        await ExpenseAPI.updateCard(this.currentEditingId, cardData);
-        UI.showNotification('Card updated successfully');
-      } else {
-        await ExpenseAPI.createCard(cardData);
-        UI.showNotification('Card added successfully');
-      }
-
-      await this.loadData();
-      this.loadCardsView();
-      UI.hideModal('card-modal');
-    } catch (error) {
-      console.error('Error saving card:', error);
-      UI.showNotification('Error saving card', 'error');
-    }
-  }
 
   async editExpense(id) {
     const expense = this.expenses.find(e => e.id === id);
     if (!expense) return;
 
     this.currentEditingId = id;
+    this.currentEditingType = 'expense';
     document.getElementById('modal-title').textContent = 'Edit Expense';
+
+    // Populate categories and income sources from the current budget
+    this.populateCategorySelects();
+    this.populateIncomeSourceSelects();
+
     document.getElementById('expense-amount').value = expense.amount;
     document.getElementById('expense-category').value = expense.category;
     document.getElementById('expense-description').value = expense.description;
     document.getElementById('expense-date').value = expense.date.split('T')[0];
-    document.getElementById('expense-payment').value = expense.paymentMethod;
-    document.getElementById('expense-card').value = expense.cardName;
+    document.getElementById('expense-income-source').value = expense.paymentMethod || expense.cardName;
     document.getElementById('expense-frequency').value = expense.frequency;
     document.getElementById('expense-recurring').checked = expense.isRecurring;
     document.getElementById('expense-notes').value = expense.notes;
+
+    // Add validation listeners
+    document.getElementById('expense-amount').addEventListener('change', () => this.validateExpenseIncomeSource());
+    document.getElementById('expense-income-source').addEventListener('change', () => this.validateExpenseIncomeSource());
 
     UI.showModal('expense-modal');
   }
@@ -994,65 +920,136 @@ class ExpenseTrackerApp {
     UI.showModal('category-modal');
   }
 
-  async editIncome(id) {
-    const income = this.income.find(i => i.id === id);
-    if (!income) return;
 
-    this.currentEditingId = id;
-    document.getElementById('income-modal-title').textContent = 'Edit Income';
-    document.getElementById('income-amount').value = income.amount;
-    document.getElementById('income-source').value = income.source;
-    document.getElementById('income-description').value = income.description;
-    document.getElementById('income-date').value = income.date.split('T')[0];
-    document.getElementById('income-frequency').value = income.frequency;
-    document.getElementById('income-recurring').checked = income.isRecurring;
-    document.getElementById('income-notes').value = income.notes;
-
-    UI.showModal('income-modal');
-  }
-
-  async editPaymentMethod(id) {
-    const method = this.paymentMethods.find(m => m.id === id);
-    if (!method) return;
-
-    this.currentEditingId = id;
-    document.getElementById('payment-method-modal-title').textContent = 'Edit Payment Method';
-    document.getElementById('payment-method-name').value = method.name;
-    document.getElementById('payment-method-type').value = method.type;
-    document.getElementById('payment-method-icon').value = method.icon;
-    document.getElementById('payment-method-color').value = method.color;
-
-    UI.showModal('payment-method-modal');
-  }
-
-  async editCard(id) {
-    const card = this.cards.find(c => c.id === id);
-    if (!card) return;
-
-    this.currentEditingId = id;
-    document.getElementById('card-modal-title').textContent = 'Edit Card';
-    document.getElementById('card-name').value = card.name;
-    document.getElementById('card-type').value = card.cardType;
-    document.getElementById('card-provider').value = card.provider;
-    document.getElementById('card-last-four').value = card.lastFourDigits;
-    document.getElementById('card-bank').value = card.bankName;
-    document.getElementById('card-expiry').value = card.expiryDate;
-
-    UI.showModal('card-modal');
-  }
 
   async deleteExpense(id) {
     if (confirm('Are you sure you want to delete this expense?')) {
       try {
+        // Get the expense to find its category and amount
+        const expense = this.expenses.find(e => e.id === id);
+
         await ExpenseAPI.deleteExpense(id);
+
+        // Update budget if expense has a category
+        if (expense && expense.category) {
+          await this.updateBudgetFromExpense(expense, 'delete');
+        }
+
         UI.showNotification('Expense deleted successfully');
         await this.loadData();
         this.loadDashboard();
         this.loadExpensesView();
+        this.loadBudgetView();
       } catch (error) {
         console.error('Error deleting expense:', error);
         UI.showNotification('Error deleting expense', 'error');
       }
+    }
+  }
+
+  async updateBudgetFromExpense(expense, action) {
+    try {
+      console.log('updateBudgetFromExpense called with:', { expense, action, currentBudgetMonth: this.currentBudgetMonth });
+
+      // Find the category name from the category ID
+      const category = this.categories.find(c => c.id === expense.category);
+      console.log('Found category:', category);
+      if (!category) {
+        console.warn('Category not found for expense:', expense);
+        return;
+      }
+
+      // Get the current month's budget
+      const budget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+      console.log('Found budget:', budget);
+      if (!budget) {
+        console.warn('Budget not found for month:', this.currentBudgetMonth);
+        return;
+      }
+
+      // Find the budget item with matching category
+      const budgetItem = budget.items.find(item => item.category === category.name);
+      console.log('Found budget item:', budgetItem);
+      if (!budgetItem) {
+        console.warn('Budget item not found for category:', category.name);
+        return;
+      }
+
+      // Update the budget item's actualAmount (expense category spent amount)
+      let newActualAmount = budgetItem.actualAmount;
+      if (action === 'add') {
+        newActualAmount += expense.amount;
+      } else if (action === 'delete') {
+        newActualAmount = Math.max(0, newActualAmount - expense.amount);
+      }
+
+      console.log(`Updating budget item: ${category.name} from ${budgetItem.actualAmount} to ${newActualAmount}`);
+
+      // Get the income source from the expense (paymentMethod field)
+      const incomeSource = expense.paymentMethod || budgetItem.incomeSource;
+      console.log('Income source for this expense:', incomeSource);
+
+      // Update the expense category budget item
+      const updateResult = await ExpenseAPI.updateBudgetItem(budget.id, budgetItem.id, {
+        category: budgetItem.category,
+        group: budgetItem.group,
+        budgetAmount: budgetItem.budgetAmount,
+        actualAmount: newActualAmount,
+        incomeSource: incomeSource,
+        notes: budgetItem.notes
+      });
+
+      console.log(`Budget updated successfully:`, updateResult);
+
+      // ALSO UPDATE THE INCOME SOURCE'S ACTUAL AMOUNT
+      // actualAmount for income items represents available balance (budgetAmount - actualAmount = available)
+      // When an expense is added, we deduct from available balance
+      // When an expense is deleted, we add back to available balance
+      if (incomeSource) {
+        console.log(`Looking for income source: "${incomeSource}" in budget items`);
+        const incomeItem = budget.items.find(item => {
+          console.log(`Checking item: category="${item.category}", group="${item.group}"`);
+          return item.group === 'Income' && item.category === incomeSource;
+        });
+        console.log('Found income item:', incomeItem);
+
+        if (incomeItem) {
+          let newIncomeActualAmount = incomeItem.actualAmount;
+          console.log(`Income item current actualAmount: ${incomeItem.actualAmount}, action: ${action}, expense.amount: ${expense.amount}`);
+
+          if (action === 'add') {
+            // When adding an expense, deduct from income source's available balance
+            // Available = budgetAmount - actualAmount, so we ADD to actualAmount to reduce available
+            newIncomeActualAmount += expense.amount;
+            console.log(`ADD action: deducting ${expense.amount} from income source available balance (actualAmount: ${incomeItem.actualAmount} -> ${newIncomeActualAmount})`);
+          } else if (action === 'delete') {
+            // When deleting an expense, add back to income source's available balance
+            // Available = budgetAmount - actualAmount, so we SUBTRACT from actualAmount to increase available
+            newIncomeActualAmount = Math.max(0, newIncomeActualAmount - expense.amount);
+            console.log(`DELETE action: adding back ${expense.amount} to income source available balance (actualAmount: ${incomeItem.actualAmount} -> ${newIncomeActualAmount})`);
+          }
+
+          console.log(`Updating income source: ${incomeSource} from ${incomeItem.actualAmount} to ${newIncomeActualAmount}`);
+
+          // Update the income source budget item
+          const incomeUpdateResult = await ExpenseAPI.updateBudgetItem(budget.id, incomeItem.id, {
+            category: incomeItem.category,
+            group: incomeItem.group,
+            budgetAmount: incomeItem.budgetAmount,
+            actualAmount: newIncomeActualAmount,
+            incomeSource: incomeItem.incomeSource,
+            notes: incomeItem.notes
+          });
+
+          console.log(`Income source updated successfully:`, incomeUpdateResult);
+        } else {
+          console.warn(`Income item not found for income source: "${incomeSource}"`);
+        }
+      } else {
+        console.warn('No income source provided for expense');
+      }
+    } catch (error) {
+      console.error('Error updating budget from expense:', error);
     }
   }
 
@@ -1070,178 +1067,794 @@ class ExpenseTrackerApp {
     }
   }
 
-  async deleteIncome(id) {
-    if (confirm('Are you sure you want to delete this income?')) {
-      try {
-        await ExpenseAPI.deleteIncome(id);
-        UI.showNotification('Income deleted successfully');
-        await this.loadData();
-        this.loadIncomeView();
-      } catch (error) {
-        console.error('Error deleting income:', error);
-        UI.showNotification('Error deleting income', 'error');
-      }
-    }
+  // ==================== BUDGET METHODS ====================
+
+  getDefaultBudgetCategories() {
+    return [
+      // Income
+      { category: 'Paycheck', group: 'Income' },
+      { category: 'Business Income', group: 'Income' },
+      { category: 'Rental Income', group: 'Income' },
+      { category: 'Stocks', group: 'Income' },
+      { category: 'Interest & Dividends', group: 'Income' },
+      { category: 'Tax Refunds & Cashbacks', group: 'Income' },
+      { category: 'Other Income', group: 'Income' },
+
+      // Business_Expenses
+      { category: 'Flower Purchases', group: 'Business_Expenses' },
+      { category: 'Uber Delivery', group: 'Business_Expenses' },
+      { category: 'Others', group: 'Business_Expenses' },
+
+      // Rental_Expenses
+      { category: 'HOA', group: 'Rental_Expenses' },
+      { category: 'Home Insurance', group: 'Rental_Expenses' },
+      { category: 'Home Warranty', group: 'Rental_Expenses' },
+      { category: 'Home Repairs', group: 'Rental_Expenses' },
+
+      // Savings_Investing_Giving
+      { category: 'Emergency Fund', group: 'Savings_Investing_Giving' },
+      { category: 'Retirement / 401(k)', group: 'Savings_Investing_Giving' },
+      { category: 'Investing / Brokerage', group: 'Savings_Investing_Giving' },
+      { category: 'Next Trip / Vacation Fund', group: 'Savings_Investing_Giving' },
+      { category: 'Upskilling / Education', group: 'Savings_Investing_Giving' },
+      { category: 'Major Purchase (Car / Home)', group: 'Savings_Investing_Giving' },
+      { category: 'Debt Repayment', group: 'Savings_Investing_Giving' },
+      { category: 'Charity / Donations', group: 'Savings_Investing_Giving' },
+      { category: 'Environmental Causes', group: 'Savings_Investing_Giving' },
+
+      // Housing
+      { category: 'Mortgage / Rent', group: 'Housing' },
+      { category: 'Property Tax', group: 'Housing' },
+      { category: 'Home Insurance', group: 'Housing' },
+      { category: 'Electricity', group: 'Housing' },
+      { category: 'Natural Gas', group: 'Housing' },
+      { category: 'Water', group: 'Housing' },
+      { category: 'Sewer', group: 'Housing' },
+      { category: 'Trash / Recycling', group: 'Housing' },
+      { category: 'Internet / Cable', group: 'Housing' },
+      { category: 'Home Warranty', group: 'Housing' },
+      { category: 'Pest Control', group: 'Housing' },
+      { category: 'Lawn Care & Mowing', group: 'Housing' },
+
+      // Utilities_Bills
+      { category: 'Phone Bill', group: 'Utilities_Bills' },
+      { category: 'Streaming Services', group: 'Utilities_Bills' },
+      { category: 'Cloud Storage / Software Licenses', group: 'Utilities_Bills' },
+      { category: 'Memberships', group: 'Utilities_Bills' },
+      { category: 'Bank / Credit Card Fees', group: 'Utilities_Bills' },
+      { category: 'Other Recurring Services', group: 'Utilities_Bills' },
+
+      // Transportation
+      { category: 'Car Payment / Lease', group: 'Transportation' },
+      { category: 'Car Insurance', group: 'Transportation' },
+      { category: 'Gas / Fuel', group: 'Transportation' },
+      { category: 'Car Maintenance', group: 'Transportation' },
+      { category: 'Tolls', group: 'Transportation' },
+      { category: 'Parking Fees', group: 'Transportation' },
+      { category: 'Registration & Inspection', group: 'Transportation' },
+      { category: 'Rideshare / Taxi / Uber / Lyft', group: 'Transportation' },
+      { category: 'Public Transit', group: 'Transportation' },
+
+      // Food_Dining_Lifestyle
+      { category: 'Groceries', group: 'Food_Dining_Lifestyle' },
+      { category: 'Wholesale Groceries (Costco / Sam\'s)', group: 'Food_Dining_Lifestyle' },
+      { category: 'Dining Out / Restaurants', group: 'Food_Dining_Lifestyle' },
+      { category: 'Coffee / Snacks', group: 'Food_Dining_Lifestyle' },
+      { category: 'Movies / Theaters', group: 'Food_Dining_Lifestyle' },
+      { category: 'Events / Travel / Vacations', group: 'Food_Dining_Lifestyle' },
+      { category: 'Hobbies', group: 'Food_Dining_Lifestyle' },
+
+      // Health_Insurance
+      { category: 'Health Insurance', group: 'Health_Insurance' },
+      { category: 'Medical / Doctor Visits', group: 'Health_Insurance' },
+      { category: 'Dental & Vision', group: 'Health_Insurance' },
+      { category: 'Pharmacy / Medications', group: 'Health_Insurance' },
+      { category: 'Fitness / Gym', group: 'Health_Insurance' },
+      { category: 'Life Insurance', group: 'Health_Insurance' },
+
+      // Personal_Shopping
+      { category: 'Clothing & Accessories', group: 'Personal_Shopping' },
+      { category: 'Personal Care (Salon, Grooming)', group: 'Personal_Shopping' },
+      { category: 'Gifts', group: 'Personal_Shopping' },
+      { category: 'Electronics / Gadgets', group: 'Personal_Shopping' },
+      { category: 'Education (Books, Courses)', group: 'Personal_Shopping' },
+      { category: 'Pets (Food, Vet, etc.)', group: 'Personal_Shopping' },
+      { category: 'Miscellaneous', group: 'Personal_Shopping' }
+    ];
   }
 
-  async deletePaymentMethod(id) {
-    if (confirm('Are you sure you want to delete this payment method?')) {
-      try {
-        await ExpenseAPI.deletePaymentMethod(id);
-        UI.showNotification('Payment method deleted successfully');
-        await this.loadData();
-        this.loadPaymentMethodsView();
-      } catch (error) {
-        console.error('Error deleting payment method:', error);
-        UI.showNotification('Error deleting payment method', 'error');
-      }
-    }
+  getCurrentMonth() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
   }
 
-  async deleteCard(id) {
-    if (confirm('Are you sure you want to delete this card?')) {
-      try {
-        await ExpenseAPI.deleteCard(id);
-        UI.showNotification('Card deleted successfully');
-        await this.loadData();
-        this.loadCardsView();
-      } catch (error) {
-        console.error('Error deleting card:', error);
-        UI.showNotification('Error deleting card', 'error');
-      }
+  getNextMonth(monthStr) {
+    const [year, month] = monthStr.split('-');
+    let nextMonth = parseInt(month) + 1;
+    let nextYear = parseInt(year);
+
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
     }
+
+    return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
   }
 
-  async loadDebtsView() {
-    const debtsList = document.getElementById('debts-list');
-    const debtsSummary = document.getElementById('debts-summary');
-    const cardDebtsSection = document.getElementById('card-debts-section');
-    const cardDebtsGrid = document.getElementById('card-debts-grid');
+  getPreviousMonth(monthStr) {
+    const [year, month] = monthStr.split('-');
+    let prevMonth = parseInt(month) - 1;
+    let prevYear = parseInt(year);
 
-    if (!debtsList) return;
-
-    // Get debt summary
-    try {
-      const summary = await ExpenseAPI.getDebtSummary();
-
-      // Display summary
-      if (debtsSummary) {
-        debtsSummary.innerHTML = `
-          <div class="debt-summary-grid">
-            <div class="debt-summary-card">
-              <div class="debt-summary-label">Total Debts</div>
-              <div class="debt-summary-value">${summary.totalDebts}</div>
-            </div>
-            <div class="debt-summary-card">
-              <div class="debt-summary-label">Total Balance</div>
-              <div class="debt-summary-value">${UI.formatCurrency(summary.totalBalance)}</div>
-            </div>
-            <div class="debt-summary-card">
-              <div class="debt-summary-label">Min. Monthly Payment</div>
-              <div class="debt-summary-value">${UI.formatCurrency(summary.totalMinimumPayment)}</div>
-            </div>
-            <div class="debt-summary-card">
-              <div class="debt-summary-label">Highest Debt</div>
-              <div class="debt-summary-value">${UI.formatCurrency(summary.highestDebt)}</div>
-            </div>
-          </div>
-        `;
-      }
-    } catch (error) {
-      console.error('Error loading debt summary:', error);
+    if (prevMonth < 1) {
+      prevMonth = 12;
+      prevYear -= 1;
     }
 
-    // Load and display card debts
-    try {
-      const cardDebts = await ExpenseAPI.getAllCardDebts();
+    return `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+  }
 
-      if (cardDebts && cardDebts.length > 0) {
-        cardDebtsSection.style.display = 'block';
-        cardDebtsGrid.innerHTML = cardDebts.map(cardDebt => {
-          const card = this.cards.find(c => c.id === cardDebt.cardId);
-          return `
-            <div class="card-debt-item">
-              <div class="card-debt-header">
-                <div>
-                  <div class="card-debt-name">${cardDebt.cardName}</div>
-                  <div class="card-debt-provider">${card ? card.provider : 'Card'}</div>
-                </div>
-              </div>
-              <div class="card-debt-balance">${UI.formatCurrency(cardDebt.totalDebt)}</div>
-              <div class="card-debt-details">
-                <div class="card-debt-detail-item">
-                  <div class="card-debt-detail-label">Debts</div>
-                  <div class="card-debt-detail-value">${cardDebt.debts.length}</div>
-                </div>
-                <div class="card-debt-detail-item">
-                  <div class="card-debt-detail-label">Total Owed</div>
-                  <div class="card-debt-detail-value">${UI.formatCurrency(cardDebt.totalDebt)}</div>
-                </div>
-              </div>
-              <div class="card-debt-actions">
-                <button class="btn-pay" onclick="app.openDebtPaymentModal('${cardDebt.debts[0].id}')">Pay</button>
-                <button class="btn-edit" onclick="app.editDebt('${cardDebt.debts[0].id}')">Edit</button>
-              </div>
-            </div>
-          `;
-        }).join('');
-      } else {
-        cardDebtsSection.style.display = 'none';
+  populateBudgetMonthSelect() {
+    const select = document.getElementById('budget-month-select');
+    if (!select) return; // Element doesn't exist yet
+
+    select.innerHTML = '';
+
+    // Add current and next 12 months
+    let currentMonth = this.getCurrentMonth();
+    for (let i = -3; i <= 12; i++) {
+      let month = currentMonth;
+      for (let j = 0; j < Math.abs(i); j++) {
+        month = i < 0 ? this.getPreviousMonth(month) : this.getNextMonth(month);
       }
-    } catch (error) {
-      console.error('Error loading card debts:', error);
-      cardDebtsSection.style.display = 'none';
+
+      const option = document.createElement('option');
+      option.value = month;
+      const [year, monthNum] = month.split('-');
+      const monthName = new Date(year, parseInt(monthNum) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      option.textContent = monthName;
+      select.appendChild(option);
     }
 
-    // Display other debts list
-    const otherDebts = this.debts.filter(d => d.isActive && d.type !== 'credit_card');
-    debtsList.innerHTML = otherDebts
-      .map(debt => `
-        <div class="debt-item">
-          <div class="debt-item-header">
-            <div class="debt-item-title">
-              <h4>${debt.name}</h4>
-              <p>${debt.creditor || 'N/A'}</p>
-            </div>
-            <div class="debt-item-balance">
-              <div class="debt-balance-label">Current Balance</div>
-              <div class="debt-balance-amount">${UI.formatCurrency(debt.currentBalance)}</div>
-            </div>
+    select.value = this.currentBudgetMonth;
+  }
+
+  async loadBudgetView() {
+    // Populate month dropdown
+    this.populateBudgetMonthSelect();
+
+    const budget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+    this.currentBudget = budget; // Set current budget for use in other methods
+    const noBudgetMsg = document.getElementById('no-budget-message');
+    const budgetTableContainer = document.getElementById('budget-table-container');
+    const budgetSummaryCards = document.getElementById('budget-summary-cards');
+
+    if (!budget) {
+      noBudgetMsg.style.display = 'block';
+      budgetTableContainer.style.display = 'none';
+      budgetSummaryCards.style.display = 'none';
+      return;
+    }
+
+    noBudgetMsg.style.display = 'none';
+    budgetTableContainer.style.display = 'block';
+    budgetSummaryCards.style.display = 'block';
+
+    // Calculate Income and Expenses separately
+    const incomeItems = budget.items.filter(item => item.group === 'Income');
+    const expenseItems = budget.items.filter(item => item.group !== 'Income');
+
+    const incomePlanned = incomeItems.reduce((sum, item) => sum + item.budgetAmount, 0);
+    const incomeSpent = incomeItems.reduce((sum, item) => sum + item.actualAmount, 0);
+    const incomeRemaining = incomePlanned - incomeSpent;
+
+    const expensesPlanned = expenseItems.reduce((sum, item) => sum + item.budgetAmount, 0);
+    const expensesSpent = expenseItems.reduce((sum, item) => sum + item.actualAmount, 0);
+    const expensesRemaining = expensesPlanned - expensesSpent;
+
+    // Update Income summary cards
+    const incomeCard = document.getElementById('income-summary-card');
+    if (incomeCard) {
+      incomeCard.innerHTML = `
+        <div class="summary-card-row">
+          <div class="summary-item">
+            <span class="summary-label">Income Planned</span>
+            <span class="summary-value">${UI.formatCurrency(incomePlanned)}</span>
           </div>
-          <div class="debt-item-details">
-            <div class="debt-detail">
-              <span class="debt-detail-label">Type:</span>
-              <span class="debt-detail-value">${debt.type.replace(/_/g, ' ').toUpperCase()}</span>
-            </div>
-            <div class="debt-detail">
-              <span class="debt-detail-label">Min. Payment:</span>
-              <span class="debt-detail-value">${UI.formatCurrency(debt.minimumPayment)}</span>
-            </div>
-            <div class="debt-detail">
-              <span class="debt-detail-label">Interest Rate:</span>
-              <span class="debt-detail-value">${debt.interestRate}%</span>
-            </div>
-            <div class="debt-detail">
-              <span class="debt-detail-label">Due Date:</span>
-              <span class="debt-detail-value">Day ${debt.dueDate}</span>
-            </div>
+          <div class="summary-item">
+            <span class="summary-label">Income Spent</span>
+            <span class="summary-value">${UI.formatCurrency(incomeSpent)}</span>
           </div>
-          <div class="debt-item-actions">
-            <button class="payment-btn" onclick="app.openDebtPaymentModal('${debt.id}')">Make Payment</button>
-            <button class="edit-btn" onclick="app.editDebt('${debt.id}')">Edit</button>
-            <button class="delete-btn" onclick="app.deleteDebt('${debt.id}')">Delete</button>
+          <div class="summary-item">
+            <span class="summary-label">Income Remaining</span>
+            <span class="summary-value ${incomeRemaining >= 0 ? 'positive' : 'negative'}">${UI.formatCurrency(incomeRemaining)}</span>
           </div>
         </div>
-      `)
-      .join('');
+      `;
+    }
+
+    // Update Expenses summary cards
+    const expensesCard = document.getElementById('expenses-summary-card');
+    if (expensesCard) {
+      expensesCard.innerHTML = `
+        <div class="summary-card-row">
+          <div class="summary-item">
+            <span class="summary-label">Expenses Planned</span>
+            <span class="summary-value">${UI.formatCurrency(expensesPlanned)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Expenses Spent</span>
+            <span class="summary-value">${UI.formatCurrency(expensesSpent)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Expenses Remaining</span>
+            <span class="summary-value ${expensesRemaining >= 0 ? 'positive' : 'negative'}">${UI.formatCurrency(expensesRemaining)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Overall summary cards removed as per user request
+
+    // Render Income Table
+    let incomeHTML = '';
+    incomeItems.forEach(item => {
+      const remaining = item.budgetAmount - item.actualAmount;
+      incomeHTML += `
+        <tr>
+          <td class="budget-category-name">${item.category}</td>
+          <td class="budget-amount-display">${UI.formatCurrency(item.budgetAmount)}</td>
+          <td class="budget-amount-display" style="color: #4caf50; font-weight: 600;">${UI.formatCurrency(item.actualAmount)}</td>
+          <td class="budget-amount-display">${UI.formatCurrency(remaining)}</td>
+          <td class="budget-table-actions">
+            <button class="btn-edit" onclick="app.editBudgetItem('${budget.id}', '${item.id}')">Edit</button>
+            <button class="btn-delete" onclick="app.deleteBudgetItem('${budget.id}', '${item.id}')">Delete</button>
+          </td>
+        </tr>
+      `;
+    });
+    document.getElementById('income-table-body').innerHTML = incomeHTML;
+
+    // Render Expenses Table with grouped categories
+    let expensesHTML = '';
+    const groupedExpenses = {};
+    const expenseGroupOrder = [];
+
+    expenseItems.forEach(item => {
+      const group = item.group || 'Other';
+      if (!groupedExpenses[group]) {
+        groupedExpenses[group] = [];
+        expenseGroupOrder.push(group);
+      }
+      groupedExpenses[group].push(item);
+    });
+
+    expenseGroupOrder.forEach((group) => {
+      expensesHTML += `<tr class="budget-group-header" data-group="${group}">
+        <td colspan="5">
+          <div class="budget-group-header-content">
+            <span class="budget-group-name">${group}</span>
+          </div>
+        </td>
+      </tr>`;
+
+      groupedExpenses[group].forEach(item => {
+        const remaining = item.budgetAmount - item.actualAmount;
+        const remainingClass = remaining >= 0 ? 'budget-remaining-positive' : 'budget-remaining-negative';
+
+        expensesHTML += `
+          <tr>
+            <td class="budget-category-name">${item.category}</td>
+            <td class="budget-amount-display">${UI.formatCurrency(item.budgetAmount)}</td>
+            <td class="budget-amount-display">${UI.formatCurrency(item.actualAmount)}</td>
+            <td class="budget-amount-display ${remainingClass}">${UI.formatCurrency(remaining)}</td>
+            <td class="budget-table-actions">
+              <button class="btn-edit" onclick="app.editBudgetItem('${budget.id}', '${item.id}')">Edit</button>
+              <button class="btn-quick-add" onclick="app.quickAddSpent('${budget.id}', '${item.id}')">+ Add Spent</button>
+              <button class="btn-delete" onclick="app.deleteBudgetItem('${budget.id}', '${item.id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+    });
+
+    document.getElementById('expenses-table-body').innerHTML = expensesHTML;
+  }
+
+  async createNewBudget() {
+    try {
+      const defaultCategories = this.getDefaultBudgetCategories();
+      const budgetData = {
+        month: this.currentBudgetMonth,
+        year: parseInt(this.currentBudgetMonth.split('-')[0]),
+        items: defaultCategories.map(cat => ({
+          id: this.generateUUID(),
+          category: cat.category,
+          group: cat.group,
+          budgetAmount: 0,
+          actualAmount: 0,
+          notes: ''
+        })),
+        notes: ''
+      };
+
+      const newBudget = await ExpenseAPI.createBudget(budgetData);
+      this.budgets.push(newBudget);
+      this.loadBudgetView();
+      UI.showNotification('Budget created with default categories', 'success');
+    } catch (error) {
+      console.error('Error creating budget:', error);
+      UI.showNotification('Error creating budget', 'error');
+    }
+  }
+
+  async saveBudgetItem() {
+    const category = document.getElementById('budget-item-category').value;
+    let group = document.getElementById('budget-item-group').value;
+    const newGroup = document.getElementById('budget-item-new-group').value;
+    const budgetAmount = parseFloat(document.getElementById('budget-item-amount').value);
+    const notes = document.getElementById('budget-item-notes').value;
+
+    // Validate required fields (allow 0 for budgetAmount)
+    if (!category || budgetAmount === null || isNaN(budgetAmount) || !group) {
+      UI.showNotification('Please fill in all required fields', 'error');
+      return;
+    }
+
+    // If creating new group, use the new group name
+    if (group === '__new__') {
+      if (!newGroup.trim()) {
+        UI.showNotification('Please enter a group name', 'error');
+        return;
+      }
+      group = newGroup.trim();
+    }
+
+    try {
+      let budget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+
+      if (!budget) {
+        // Create new budget for this month
+        const budgetData = {
+          month: this.currentBudgetMonth,
+          year: parseInt(this.currentBudgetMonth.split('-')[0]),
+          items: [],
+          notes: ''
+        };
+        budget = await ExpenseAPI.createBudget(budgetData);
+        this.budgets.push(budget);
+      }
+
+      if (this.currentEditingItemId) {
+        // Update existing item
+        await ExpenseAPI.updateBudgetItem(budget.id, this.currentEditingItemId, {
+          category,
+          group,
+          budgetAmount,
+          notes
+        });
+      } else {
+        // Add new item
+        await ExpenseAPI.addBudgetItem(budget.id, {
+          category,
+          group,
+          budgetAmount,
+          notes
+        });
+      }
+
+      await this.loadData();
+      this.loadBudgetView();
+      UI.hideModal('budget-item-modal');
+      UI.showNotification('Budget item saved successfully');
+    } catch (error) {
+      console.error('Error saving budget item:', error);
+      UI.showNotification('Error saving budget item', 'error');
+    }
+  }
+
+  async editBudgetItem(budgetId, itemId) {
+    console.log('editBudgetItem called with budgetId:', budgetId, 'itemId:', itemId);
+
+    const budget = this.budgets.find(b => b.id === budgetId);
+    console.log('Found budget:', budget);
+    if (!budget) {
+      console.error('Budget not found');
+      return;
+    }
+
+    const item = budget.items.find(i => i.id === itemId);
+    console.log('Found item:', item);
+    if (!item) {
+      console.error('Item not found');
+      return;
+    }
+
+    this.currentEditingBudgetId = budgetId;
+    this.currentEditingItemId = itemId;
+
+    // Populate form fields
+    const titleEl = document.getElementById('budget-item-modal-title');
+    const categoryEl = document.getElementById('budget-item-category');
+    const groupEl = document.getElementById('budget-item-group');
+    const newGroupEl = document.getElementById('budget-item-new-group');
+    const amountEl = document.getElementById('budget-item-amount');
+    const notesEl = document.getElementById('budget-item-notes');
+
+    console.log('Form elements found:', { titleEl, categoryEl, groupEl, amountEl });
+
+    titleEl.textContent = 'Edit Budget Item';
+    categoryEl.value = item.category || '';
+    groupEl.value = item.group || 'Other';
+    newGroupEl.style.display = 'none';
+    newGroupEl.value = '';
+    amountEl.value = item.budgetAmount || 0;
+    notesEl.value = item.notes || '';
+
+    console.log('Form populated, showing modal');
+    UI.showModal('budget-item-modal');
+  }
+
+  moveGroupUp(group) {
+    const budget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+    if (!budget) return;
+
+    // Get unique groups in order of appearance
+    const groupOrder = [];
+    budget.items.forEach(item => {
+      const g = item.group || 'Other';
+      if (!groupOrder.includes(g)) {
+        groupOrder.push(g);
+      }
+    });
+
+    const currentIndex = groupOrder.indexOf(group);
+    if (currentIndex <= 0) return;
+
+    // Swap with previous group
+    const prevGroup = groupOrder[currentIndex - 1];
+    const tempGroup = '__temp_swap__';
+
+    // Rename current group to temp
+    budget.items.forEach(item => {
+      if (item.group === group) item.group = tempGroup;
+    });
+
+    // Rename previous group to current
+    budget.items.forEach(item => {
+      if (item.group === prevGroup) item.group = group;
+    });
+
+    // Rename temp to previous
+    budget.items.forEach(item => {
+      if (item.group === tempGroup) item.group = prevGroup;
+    });
+
+    this.saveBudgetOrder(budget);
+  }
+
+  moveGroupDown(group) {
+    const budget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+    if (!budget) return;
+
+    // Get unique groups in order of appearance
+    const groupOrder = [];
+    budget.items.forEach(item => {
+      const g = item.group || 'Other';
+      if (!groupOrder.includes(g)) {
+        groupOrder.push(g);
+      }
+    });
+
+    const currentIndex = groupOrder.indexOf(group);
+    if (currentIndex >= groupOrder.length - 1) return;
+
+    // Swap with next group
+    const nextGroup = groupOrder[currentIndex + 1];
+    const tempGroup = '__temp_swap__';
+
+    // Rename current group to temp
+    budget.items.forEach(item => {
+      if (item.group === group) item.group = tempGroup;
+    });
+
+    // Rename next group to current
+    budget.items.forEach(item => {
+      if (item.group === nextGroup) item.group = group;
+    });
+
+    // Rename temp to next
+    budget.items.forEach(item => {
+      if (item.group === tempGroup) item.group = nextGroup;
+    });
+
+    this.saveBudgetOrder(budget);
+  }
+
+  async saveBudgetOrder(budget) {
+    try {
+      await ExpenseAPI.updateBudget(budget.id, {
+        items: budget.items
+      });
+      this.loadBudgetView();
+      UI.showNotification('Category order updated', 'success');
+    } catch (error) {
+      console.error('Error saving budget order:', error);
+      UI.showNotification('Error updating category order', 'error');
+    }
+  }
+
+  // Quick add spent amount - shows Add Spent modal
+  quickAddSpent(budgetId, itemId) {
+    const budget = this.budgets.find(b => b.id === budgetId);
+    if (!budget) return;
+
+    const item = budget.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    // Store context
+    this.currentAddSpentContext = {
+      budgetId,
+      itemId,
+      item
+    };
+
+    // Populate modal
+    document.getElementById('add-spent-category').value = item.category;
+    document.getElementById('add-spent-amount').value = '';
+    document.getElementById('add-spent-notes').value = item.notes || '';
+
+    // Populate income source dropdown with validation
+    const incomeItems = budget.items.filter(i => i.group === 'Income');
+    const sourceSelect = document.getElementById('add-spent-income-source');
+    sourceSelect.innerHTML = '<option value="">-- Select Income Source --</option>';
+
+    incomeItems.forEach(income => {
+      const available = income.budgetAmount - income.actualAmount;
+      // Only show income sources with available balance > 0
+      if (available > 0) {
+        const option = document.createElement('option');
+        option.value = income.id;
+        option.textContent = `${income.category} (Available: ${UI.formatCurrency(available)})`;
+        option.dataset.available = available;
+        sourceSelect.appendChild(option);
+      }
+    });
+
+    if (sourceSelect.options.length <= 1) {
+      UI.showNotification('No income sources with available balance', 'error');
+      return;
+    }
+
+    // Add change listener for validation
+    sourceSelect.addEventListener('change', () => this.validateIncomeSource());
+
+    UI.showModal('add-spent-modal');
+  }
+
+  // Validate income source against expense amount
+  validateIncomeSource() {
+    const amountInput = document.getElementById('add-spent-amount');
+    const sourceSelect = document.getElementById('add-spent-income-source');
+    const validationDiv = document.getElementById('income-source-validation');
+    const submitBtn = document.querySelector('#add-spent-form button[type="submit"]');
+
+    const amount = parseFloat(amountInput.value) || 0;
+    const selectedOption = sourceSelect.options[sourceSelect.selectedIndex];
+    const available = parseFloat(selectedOption.dataset.available) || 0;
+
+    if (amount > 0 && sourceSelect.value) {
+      if (amount > available) {
+        validationDiv.textContent = `❌ Amount exceeds available balance of ${UI.formatCurrency(available)}`;
+        validationDiv.style.display = 'block';
+        submitBtn.disabled = true;
+      } else {
+        validationDiv.style.display = 'none';
+        submitBtn.disabled = false;
+      }
+    }
+  }
+
+  // Validate income source against expense amount (for Expense form)
+  validateExpenseIncomeSource() {
+    const amountInput = document.getElementById('expense-amount');
+    const sourceSelect = document.getElementById('expense-income-source');
+    const validationDiv = document.getElementById('expense-income-validation');
+    const submitBtn = document.querySelector('#expense-form button[type="submit"]');
+
+    const amount = parseFloat(amountInput.value) || 0;
+    const selectedOption = sourceSelect.options[sourceSelect.selectedIndex];
+    const available = parseFloat(selectedOption.dataset.available) || 0;
+
+    if (amount > 0 && sourceSelect.value) {
+      if (amount > available) {
+        validationDiv.textContent = `❌ Amount exceeds available balance of ${UI.formatCurrency(available)}`;
+        validationDiv.style.display = 'block';
+        submitBtn.disabled = true;
+      } else {
+        validationDiv.style.display = 'none';
+        submitBtn.disabled = false;
+      }
+    } else {
+      validationDiv.style.display = 'none';
+      submitBtn.disabled = false;
+    }
+  }
+
+  // Handle Add Spent form submission
+  async handleAddSpentSubmit(e) {
+    e.preventDefault();
+
+    const amount = parseFloat(document.getElementById('add-spent-amount').value);
+    const sourceId = document.getElementById('add-spent-income-source').value;
+    const notes = document.getElementById('add-spent-notes').value;
+
+    console.log('handleAddSpentSubmit called with:', { amount, sourceId, notes });
+
+    if (!amount || amount <= 0) {
+      UI.showNotification('Please enter a valid amount', 'error');
+      return;
+    }
+
+    if (!sourceId) {
+      UI.showNotification('Please select an income source', 'error');
+      return;
+    }
+
+    const { budgetId, itemId, item } = this.currentAddSpentContext;
+    console.log('Current context:', { budgetId, itemId, item });
+
+    const budget = this.budgets.find(b => b.id === budgetId);
+    if (!budget) {
+      console.error('Budget not found:', budgetId);
+      return;
+    }
+
+    const incomeItem = budget.items.find(i => i.id === sourceId);
+    if (!incomeItem) {
+      console.error('Income item not found:', sourceId);
+      return;
+    }
+
+    console.log('Income item:', incomeItem);
+
+    try {
+      // Update expense item's spent amount
+      console.log(`Updating expense item: ${item.category} from actualAmount ${item.actualAmount} to ${item.actualAmount + amount}`);
+      await ExpenseAPI.updateBudgetItem(budgetId, itemId, {
+        category: item.category,
+        group: item.group,
+        budgetAmount: item.budgetAmount,
+        actualAmount: item.actualAmount + amount,
+        incomeSource: incomeItem.category,
+        notes: notes
+      });
+
+      // ALSO update income item's actualAmount - deduct the spent amount from the income source
+      // actualAmount for income items represents amount SPENT (not available)
+      // Available = budgetAmount - actualAmount
+      // When spending, we ADD to actualAmount to REDUCE available balance
+      const newIncomeActualAmount = incomeItem.actualAmount + amount;
+      console.log(`Updating income source: ${incomeItem.category} from actualAmount ${incomeItem.actualAmount} to ${newIncomeActualAmount} (deducting ${amount} from available)`);
+      await ExpenseAPI.updateBudgetItem(budgetId, sourceId, {
+        category: incomeItem.category,
+        group: incomeItem.group,
+        budgetAmount: incomeItem.budgetAmount,
+        actualAmount: newIncomeActualAmount,
+        incomeSource: incomeItem.incomeSource,
+        notes: incomeItem.notes
+      });
+
+      console.log('About to create expense transaction with:', { category: item.category, amount, paymentMethod: incomeItem.category });
+
+      // Create expense transaction in Expenses tab
+      await this.createExpenseTransaction(item.category, amount, incomeItem.category);
+
+      await this.loadData();
+      this.loadBudgetView();
+      UI.hideModal('add-spent-modal');
+      UI.showNotification(`Recorded ${UI.formatCurrency(amount)} spent from ${incomeItem.category}`, 'success');
+    } catch (error) {
+      console.error('Error recording spent:', error);
+      UI.showNotification('Error recording spent amount', 'error');
+    }
+  }
+
+  // Create expense transaction in Expenses tab
+  async createExpenseTransaction(categoryName, amount, paymentMethod) {
+    try {
+      console.log('createExpenseTransaction called with:', { categoryName, amount, paymentMethod });
+      console.log('Available categories:', this.categories);
+
+      // Find category ID by name
+      const categoryObj = this.categories.find(c => c.name === categoryName);
+      console.log('Found category object:', categoryObj);
+
+      const categoryId = categoryObj ? categoryObj.id : 10; // Default to "Other" if not found
+      console.log('Using category ID:', categoryId);
+
+      const today = new Date().toISOString().split('T')[0];
+      const expense = {
+        category: categoryId,
+        amount: amount,
+        date: today,
+        paymentMethod: paymentMethod,
+        notes: `Budget: ${categoryName}`
+      };
+
+      console.log('Creating expense:', expense);
+
+      // Add to expenses
+      const result = await ExpenseAPI.createExpense(expense);
+      console.log('Expense created successfully:', result);
+    } catch (error) {
+      console.error('Error creating expense transaction:', error);
+      // Don't fail the whole operation if transaction creation fails
+    }
+  }
+
+  async deleteBudgetItem(budgetId, itemId) {
+    if (!confirm('Are you sure you want to delete this budget item?')) {
+      return;
+    }
+
+    try {
+      await ExpenseAPI.deleteBudgetItem(budgetId, itemId);
+      await this.loadData();
+      this.loadBudgetView();
+      UI.showNotification('Budget item deleted successfully');
+    } catch (error) {
+      console.error('Error deleting budget item:', error);
+      UI.showNotification('Error deleting budget item', 'error');
+    }
+  }
+
+  async copyBudgetToNextMonth() {
+    const budget = this.budgets.find(b => b.month === this.currentBudgetMonth);
+    if (!budget) {
+      UI.showNotification('No budget to copy', 'error');
+      return;
+    }
+
+    const nextMonth = this.getNextMonth(this.currentBudgetMonth);
+    const existingBudget = this.budgets.find(b => b.month === nextMonth);
+
+    if (existingBudget) {
+      UI.showNotification('Budget already exists for next month', 'error');
+      return;
+    }
+
+    try {
+      await ExpenseAPI.copyBudget(budget.id, nextMonth);
+      await this.loadData();
+      this.currentBudgetMonth = nextMonth;
+      this.populateBudgetMonthSelect();
+      this.loadBudgetView();
+      UI.showNotification('Budget copied to next month successfully');
+    } catch (error) {
+      console.error('Error copying budget:', error);
+      UI.showNotification('Error copying budget', 'error');
+    }
+  }
+
+  previousBudgetMonth() {
+    this.currentBudgetMonth = this.getPreviousMonth(this.currentBudgetMonth);
+    document.getElementById('budget-month-select').value = this.currentBudgetMonth;
+    this.loadBudgetView();
+  }
+
+  nextBudgetMonth() {
+    this.currentBudgetMonth = this.getNextMonth(this.currentBudgetMonth);
+    document.getElementById('budget-month-select').value = this.currentBudgetMonth;
+    this.loadBudgetView();
   }
 
   loadSettingsView() {
     // Update statistics
     document.getElementById('settings-total-expenses').textContent = this.expenses.length;
-    document.getElementById('settings-total-income').textContent = this.income.length;
     document.getElementById('settings-total-categories').textContent = this.categories.length;
-    document.getElementById('settings-total-methods').textContent = this.paymentMethods.length;
 
     // Load saved settings
     const savedCurrency = localStorage.getItem('currency') || 'USD';
@@ -1279,10 +1892,7 @@ class ExpenseTrackerApp {
   exportData() {
     const data = {
       expenses: this.expenses,
-      income: this.income,
       categories: this.categories,
-      paymentMethods: this.paymentMethods,
-      cards: this.cards,
       exportDate: new Date().toISOString()
     };
 
@@ -1370,9 +1980,6 @@ class ExpenseTrackerApp {
 
     // Clear all data
     this.expenses = [];
-    this.income = [];
-    this.paymentMethods = [];
-    this.cards = [];
 
     // Clear localStorage
     localStorage.clear();
@@ -1381,172 +1988,27 @@ class ExpenseTrackerApp {
     location.reload();
   }
 
-  // Debt Management Functions
-  openDebtModal() {
-    this.currentEditingId = null;
-    this.currentEditingType = 'debt';
-    document.getElementById('debt-modal-title').textContent = 'Add Debt';
-    document.getElementById('debt-form').reset();
 
-    // Populate card dropdown
-    this.populateCardDropdown();
 
-    // Add event listener for debt type change
-    document.getElementById('debt-type').addEventListener('change', (e) => {
-      const cardGroup = document.getElementById('card-selection-group');
-      if (e.target.value === 'credit_card') {
-        cardGroup.style.display = 'block';
-      } else {
-        cardGroup.style.display = 'none';
-      }
+  // ==================== TASK METHODS ====================
+
+  async saveTask() {
+    await this.taskManager.saveTask();
+  }
+
+  loadTasksView() {
+    UI.showView('tasks-view');
+    document.getElementById('page-title').textContent = '📋 My Tasks';
+  }
+
+  // ==================== UTILITY METHODS ====================
+
+  generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
     });
-
-    UI.showModal('debt-modal');
-  }
-
-  populateCardDropdown() {
-    const cardSelect = document.getElementById('debt-card-id');
-    cardSelect.innerHTML = '<option value="">Select a Card</option>';
-
-    if (this.cards && this.cards.length > 0) {
-      this.cards.forEach(card => {
-        const option = document.createElement('option');
-        option.value = card.id;
-        option.textContent = `${card.name} (${card.provider} - ${card.lastFourDigits})`;
-        cardSelect.appendChild(option);
-      });
-    }
-  }
-
-  async saveDebt() {
-    const debtType = document.getElementById('debt-type').value;
-    const cardId = document.getElementById('debt-card-id').value;
-
-    // Validate card selection for credit cards
-    if (debtType === 'credit_card' && !cardId) {
-      UI.showNotification('Please select a card for credit card debt', 'error');
-      return;
-    }
-
-    // Get card name if credit card
-    let cardName = null;
-    if (debtType === 'credit_card' && cardId) {
-      const card = this.cards.find(c => c.id === cardId);
-      cardName = card ? card.name : null;
-    }
-
-    const debtData = {
-      name: document.getElementById('debt-name').value,
-      type: debtType,
-      creditor: document.getElementById('debt-creditor').value,
-      originalAmount: parseFloat(document.getElementById('debt-original-amount').value),
-      currentBalance: parseFloat(document.getElementById('debt-current-balance').value),
-      minimumPayment: parseFloat(document.getElementById('debt-min-payment').value) || 0,
-      interestRate: parseFloat(document.getElementById('debt-interest-rate').value) || 0,
-      dueDate: parseInt(document.getElementById('debt-due-date').value) || 1,
-      startDate: document.getElementById('debt-start-date').value,
-      targetPayoffDate: document.getElementById('debt-payoff-date').value || null,
-      cardId: cardId || null,
-      cardName: cardName,
-      notes: document.getElementById('debt-notes').value
-    };
-
-    try {
-      if (this.currentEditingId) {
-        await ExpenseAPI.updateDebt(this.currentEditingId, debtData);
-        UI.showNotification('Debt updated successfully');
-      } else {
-        await ExpenseAPI.createDebt(debtData);
-        UI.showNotification('Debt added successfully');
-      }
-
-      await this.loadData();
-      this.loadDebtsView();
-      UI.hideModal('debt-modal');
-    } catch (error) {
-      console.error('Error saving debt:', error);
-      UI.showNotification('Error saving debt', 'error');
-    }
-  }
-
-  editDebt(id) {
-    const debt = this.debts.find(d => d.id === id);
-    if (!debt) return;
-
-    this.currentEditingId = id;
-    document.getElementById('debt-modal-title').textContent = 'Edit Debt';
-    document.getElementById('debt-name').value = debt.name;
-    document.getElementById('debt-type').value = debt.type;
-    document.getElementById('debt-creditor').value = debt.creditor || '';
-    document.getElementById('debt-original-amount').value = debt.originalAmount;
-    document.getElementById('debt-current-balance').value = debt.currentBalance;
-    document.getElementById('debt-min-payment').value = debt.minimumPayment;
-    document.getElementById('debt-interest-rate').value = debt.interestRate;
-    document.getElementById('debt-due-date').value = debt.dueDate;
-    document.getElementById('debt-start-date').value = debt.startDate;
-    document.getElementById('debt-payoff-date').value = debt.targetPayoffDate || '';
-    document.getElementById('debt-notes').value = debt.notes;
-
-    // Populate card dropdown and set selected card
-    this.populateCardDropdown();
-    if (debt.cardId) {
-      document.getElementById('debt-card-id').value = debt.cardId;
-      document.getElementById('card-selection-group').style.display = 'block';
-    } else {
-      document.getElementById('card-selection-group').style.display = 'none';
-    }
-
-    UI.showModal('debt-modal');
-  }
-
-  async deleteDebt(id) {
-    if (!confirm('Are you sure you want to delete this debt?')) {
-      return;
-    }
-
-    try {
-      await ExpenseAPI.deleteDebt(id);
-      UI.showNotification('Debt deleted successfully');
-      await this.loadData();
-      this.loadDebtsView();
-    } catch (error) {
-      console.error('Error deleting debt:', error);
-      UI.showNotification('Error deleting debt', 'error');
-    }
-  }
-
-  openDebtPaymentModal(debtId) {
-    const debt = this.debts.find(d => d.id === debtId);
-    if (!debt) return;
-
-    document.getElementById('payment-debt-id').value = debtId;
-    document.getElementById('payment-debt-name').textContent = debt.name;
-    document.getElementById('payment-current-balance').textContent = UI.formatCurrency(debt.currentBalance);
-    document.getElementById('payment-amount').value = debt.minimumPayment;
-    document.getElementById('payment-amount').max = debt.currentBalance;
-
-    UI.showModal('debt-payment-modal');
-  }
-
-  async makeDebtPayment() {
-    const debtId = document.getElementById('payment-debt-id').value;
-    const amount = parseFloat(document.getElementById('payment-amount').value);
-
-    if (!amount || amount <= 0) {
-      UI.showNotification('Please enter a valid payment amount', 'error');
-      return;
-    }
-
-    try {
-      await ExpenseAPI.makeDebtPayment(debtId, amount);
-      UI.showNotification('Payment recorded successfully');
-      await this.loadData();
-      this.loadDebtsView();
-      UI.hideModal('debt-payment-modal');
-    } catch (error) {
-      console.error('Error making payment:', error);
-      UI.showNotification('Error making payment', 'error');
-    }
   }
 }
 
@@ -1589,20 +2051,34 @@ function setupAuthEventListeners() {
       const password = document.getElementById('login-password').value;
       const messageEl = document.getElementById('login-message');
 
+      // Validate inputs
+      if (!email || !password) {
+        messageEl.classList.remove('success');
+        messageEl.classList.add('error');
+        messageEl.textContent = 'Please enter both email and password';
+        messageEl.style.display = 'block';
+        return;
+      }
+
       messageEl.classList.remove('error', 'success');
       messageEl.textContent = 'Logging in...';
       messageEl.style.display = 'block';
 
+      console.log('Attempting login with email:', email);
       const success = await AuthManager.login(email, password);
+
       if (success) {
         messageEl.classList.add('success');
         messageEl.textContent = 'Login successful!';
+        messageEl.style.display = 'block';
         setTimeout(() => {
           app = new ExpenseTrackerApp();
         }, 500);
       } else {
         messageEl.classList.add('error');
         messageEl.textContent = 'Login failed. Please check your credentials.';
+        messageEl.style.display = 'block';
+        console.error('Login failed for email:', email);
       }
     });
   }
@@ -1634,6 +2110,7 @@ function setupAuthEventListeners() {
       if (success) {
         messageEl.classList.add('success');
         messageEl.textContent = 'Registration successful! Switching to login...';
+        messageEl.style.display = 'block';
         document.getElementById('register-form').reset();
         setTimeout(() => {
           AuthManager.switchToLogin();
@@ -1641,6 +2118,7 @@ function setupAuthEventListeners() {
       } else {
         messageEl.classList.add('error');
         messageEl.textContent = 'Registration failed. Please try again.';
+        messageEl.style.display = 'block';
       }
     });
   }

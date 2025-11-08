@@ -1,14 +1,30 @@
 const db = require('../db/database');
 const Income = require('../models/Income');
+const BankAccountService = require('./bankAccountService');
+const ActivityLogService = require('./activityLogService');
 
 class IncomeService {
   // Create a new income
   static createIncome(incomeData) {
     const incomes = db.readIncome();
     const income = new Income(incomeData);
-    incomes.push(income.toJSON());
+    const incomeJson = income.toJSON();
+    incomes.push(incomeJson);
     db.writeIncome(incomes);
-    return income.toJSON();
+
+    // If bank account is specified, deposit the income
+    if (incomeData.bankAccountId) {
+      BankAccountService.addToAccount(incomeData.bankAccountId, parseFloat(incomeData.amount));
+    }
+
+    // Log activity
+    ActivityLogService.logIncomeActivity({
+      id: incomeJson.id,
+      source: incomeData.source,
+      amount: incomeData.amount
+    });
+
+    return incomeJson;
   }
 
   // Get all income
@@ -26,16 +42,28 @@ class IncomeService {
   static updateIncome(id, updateData) {
     const incomes = db.readIncome();
     const index = incomes.findIndex(i => i.id === id);
-    
+
     if (index === -1) {
       return null;
     }
 
+    const oldIncome = incomes[index];
     const updated = {
-      ...incomes[index],
+      ...oldIncome,
       ...updateData,
       updatedAt: new Date().toISOString()
     };
+
+    // Handle bank account updates
+    // If old income was deposited to a bank account, reduce the balance
+    if (oldIncome.bankAccountId) {
+      BankAccountService.addToAccount(oldIncome.bankAccountId, -parseFloat(oldIncome.amount));
+    }
+
+    // If new income is deposited to a bank account, increase the balance
+    if (updateData.bankAccountId) {
+      BankAccountService.addToAccount(updateData.bankAccountId, parseFloat(updateData.amount));
+    }
 
     incomes[index] = updated;
     db.writeIncome(incomes);
@@ -45,12 +73,20 @@ class IncomeService {
   // Delete income
   static deleteIncome(id) {
     const incomes = db.readIncome();
-    const filtered = incomes.filter(i => i.id !== id);
-    
-    if (filtered.length === incomes.length) {
+    const incomeIndex = incomes.findIndex(i => i.id === id);
+
+    if (incomeIndex === -1) {
       return false;
     }
 
+    const income = incomes[incomeIndex];
+
+    // If income was deposited to a bank account, reduce the balance
+    if (income.bankAccountId) {
+      BankAccountService.addToAccount(income.bankAccountId, -parseFloat(income.amount));
+    }
+
+    const filtered = incomes.filter(i => i.id !== id);
     db.writeIncome(filtered);
     return true;
   }

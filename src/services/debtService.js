@@ -1,5 +1,8 @@
 const db = require('../db/database');
 const Debt = require('../models/Debt');
+const PaymentHistoryService = require('./paymentHistoryService');
+const BankAccountService = require('./bankAccountService');
+const ActivityLogService = require('./activityLogService');
 
 class DebtService {
   // Create a new debt
@@ -113,18 +116,47 @@ class DebtService {
     return types;
   }
 
-  // Make a payment on debt
-  static makePayment(debtId, paymentAmount) {
+  // Make a payment on debt with history tracking
+  static makePayment(debtId, paymentAmount, paymentData = {}) {
     const debt = this.getDebtById(debtId);
     if (!debt) {
       return null;
     }
 
     const newBalance = Math.max(0, debt.currentBalance - paymentAmount);
-    return this.updateDebt(debtId, {
+    const updatedDebt = this.updateDebt(debtId, {
       currentBalance: newBalance,
       isActive: newBalance > 0 ? debt.isActive : false
     });
+
+    // Record payment history
+    if (updatedDebt) {
+      const paymentHistory = PaymentHistoryService.createPaymentHistory({
+        debtId: debtId,
+        debtName: debt.name,
+        amount: paymentAmount,
+        paymentDate: paymentData.paymentDate || new Date().toISOString().split('T')[0],
+        paymentMethod: paymentData.paymentMethod || 'bank_transfer',
+        sourceAccount: paymentData.sourceAccount || 'Bank Account',
+        sourceAccountId: paymentData.sourceAccountId || null,
+        notes: paymentData.notes || '',
+        status: 'completed'
+      });
+
+      // Deduct from bank account if specified
+      if (paymentData.sourceAccountId) {
+        BankAccountService.deductFromAccount(paymentData.sourceAccountId, paymentAmount);
+      }
+
+      // Log activity
+      ActivityLogService.logPaymentActivity({
+        debtId: debtId,
+        debtName: debt.name,
+        amount: paymentAmount
+      });
+    }
+
+    return updatedDebt;
   }
 
   // Add expense to credit card debt

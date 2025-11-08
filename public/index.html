@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💰 Expense Tracker - Track Your Finances</title>
+    <title>📱 PersonalTracker - Track Your Life</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
@@ -13,8 +13,8 @@
         <div class="auth-container">
             <div class="auth-card">
                 <div class="auth-header">
-                    <h1>💰 ExpenseTracker</h1>
-                    <p>Manage Your Finances</p>
+                    <h1>📱 PersonalTracker</h1>
+                    <p>Track Your Life - Finances, Tasks & More</p>
                 </div>
 
                 <div class="auth-tabs">
@@ -65,41 +65,49 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h1>💰 ExpenseTracker</h1>
+                <h1>📱 PersonalTracker</h1>
             </div>
             <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-view="dashboard">
+                <!-- Personal Productivity -->
+                <a href="#" class="nav-item active" data-view="tasks">
+                    <span class="icon">✅</span>
+                    <span>Tasks</span>
+                </a>
+
+                <!-- Financial Overview -->
+                <div class="nav-section-title">💰 Finance</div>
+                <a href="#" class="nav-item" data-view="dashboard">
                     <span class="icon">📊</span>
                     <span>Dashboard</span>
                 </a>
+
+                <!-- Core Financial Management -->
                 <a href="#" class="nav-item" data-view="expenses">
                     <span class="icon">💳</span>
                     <span>Expenses</span>
+                </a>
+
+                <!-- Transaction History & Tracking -->
+                <a href="#" class="nav-item" data-view="activity-log">
+                    <span class="icon">📝</span>
+                    <span>Activity Log</span>
+                </a>
+
+                <!-- Organization & Analytics -->
+                <a href="#" class="nav-item" data-view="categories">
+                    <span class="icon">🏷️</span>
+                    <span>Categories</span>
+                </a>
+                <a href="#" class="nav-item" data-view="budget">
+                    <span class="icon">📊</span>
+                    <span>Monthly Budget</span>
                 </a>
                 <a href="#" class="nav-item" data-view="reports">
                     <span class="icon">📈</span>
                     <span>Reports</span>
                 </a>
-                <a href="#" class="nav-item" data-view="categories">
-                    <span class="icon">🏷️</span>
-                    <span>Categories</span>
-                </a>
-                <a href="#" class="nav-item" data-view="income">
-                    <span class="icon">💰</span>
-                    <span>Income</span>
-                </a>
-                <a href="#" class="nav-item" data-view="payment-methods">
-                    <span class="icon">💳</span>
-                    <span>Payment Methods</span>
-                </a>
-                <a href="#" class="nav-item" data-view="cards">
-                    <span class="icon">🏦</span>
-                    <span>Cards</span>
-                </a>
-                <a href="#" class="nav-item" data-view="debts">
-                    <span class="icon">📋</span>
-                    <span>Debts</span>
-                </a>
+
+                <!-- Settings -->
                 <a href="#" class="nav-item" data-view="settings">
                     <span class="icon">⚙️</span>
                     <span>Settings</span>
@@ -172,6 +180,7 @@
                                     <p class="stat-value" id="min-expense">$0.00</p>
                                 </div>
                             </div>
+
                         </div>
 
                         <!-- Charts -->
@@ -252,10 +261,7 @@
                             <h3>Payment Method Breakdown</h3>
                             <div id="payment-report" class="report-table"></div>
                         </div>
-                        <div class="report-section">
-                            <h3>Card Breakdown</h3>
-                            <div id="card-report" class="report-table"></div>
-                        </div>
+
                     </div>
                 </div>
 
@@ -267,62 +273,198 @@
                     <div class="categories-container" id="categories-list"></div>
                 </div>
 
-                <!-- Income View -->
-                <div id="income-view" class="view">
-                    <div class="income-header">
-                        <div class="income-header-top">
-                            <button class="btn btn-primary" id="add-income-btn">+ Add Income</button>
+
+
+                <!-- Budget View -->
+                <div id="budget-view" class="view">
+                    <!-- Budget Header -->
+                    <div class="budget-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <h2>📊 Monthly Budget</h2>
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <button class="btn btn-secondary" id="prev-month-btn">← Previous</button>
+                                    <select id="budget-month-select" class="filter-select" style="flex: 1; max-width: 200px;"></select>
+                                    <button class="btn btn-secondary" id="next-month-btn">Next →</button>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-primary" id="copy-budget-btn">📋 Copy to Next Month</button>
+                            </div>
                         </div>
-                        <!-- Income Filters -->
-                        <div class="income-filters">
-                            <select id="income-filter-period" class="filter-select">
-                                <option value="current_week">Current Week</option>
-                                <option value="past_week">Past Week</option>
-                                <option value="current_month" selected>Current Month</option>
-                                <option value="past_month">Past Month</option>
-                                <option value="current_year">Current Year</option>
-                                <option value="past_year">Past Year</option>
-                                <option value="past_5_years">Past 5 Years</option>
-                                <option value="all">All Time</option>
+                    </div>
+
+                    <!-- Budget Summary Cards -->
+                    <div id="budget-summary-cards" style="display: none; margin-bottom: 30px;">
+                        <!-- Income Summary -->
+                        <div id="income-summary-card" class="summary-card-container" style="margin-bottom: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
+                            <h3 style="margin: 0 0 10px 0; color: #2e7d32;">📊 Income Summary</h3>
+                            <div class="summary-card-row">
+                                <div class="summary-item">
+                                    <span class="summary-label">Income Planned</span>
+                                    <span class="summary-value">$0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Income Spent</span>
+                                    <span class="summary-value">$0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Income Remaining</span>
+                                    <span class="summary-value">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Expenses Summary -->
+                        <div id="expenses-summary-card" class="summary-card-container" style="margin-bottom: 20px; padding: 15px; background: #ffebee; border-radius: 8px; border-left: 4px solid #f44336;">
+                            <h3 style="margin: 0 0 10px 0; color: #c62828;">💰 Expenses Summary</h3>
+                            <div class="summary-card-row">
+                                <div class="summary-item">
+                                    <span class="summary-label">Expenses Planned</span>
+                                    <span class="summary-value">$0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Expenses Spent</span>
+                                    <span class="summary-value">$0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Expenses Remaining</span>
+                                    <span class="summary-value">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                    <!-- Budget Tables Container -->
+                    <div id="budget-table-container" style="display: none;">
+                        <!-- Income Section -->
+                        <div id="income-section" style="margin-bottom: 40px;">
+                            <h3 style="margin-bottom: 15px; color: #2e7d32; font-size: 18px;">📊 Income</h3>
+                            <table class="budget-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Planned</th>
+                                        <th>Spent</th>
+                                        <th>Remaining</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="income-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Expenses Section -->
+                        <div id="expenses-section">
+                            <h3 style="margin-bottom: 15px; color: #c62828; font-size: 18px;">💰 Expenses</h3>
+                            <table class="budget-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Planned</th>
+                                        <th>Spent</th>
+                                        <th>Remaining</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expenses-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <button class="btn btn-primary" id="add-budget-category-btn" style="margin-top: 20px;">+ Add Category</button>
+                    </div>
+
+                    <!-- No Budget Message -->
+                    <div id="no-budget-message" style="text-align: center; padding: 40px; color: #999;">
+                        <p style="font-size: 18px; margin-bottom: 10px;">📊 No budget for this month</p>
+                        <p>Click "Create Budget" to start planning your monthly budget</p>
+                        <button class="btn btn-primary" id="create-budget-btn" style="margin-top: 20px;">Create Budget</button>
+                    </div>
+                </div>
+
+                <!-- Activity Log View -->
+                <div id="activity-log-view" class="view">
+                    <div class="activity-log-header">
+                        <h2>📝 Activity Log</h2>
+                        <div class="activity-log-filters">
+                            <select id="activity-filter-type" class="filter-select">
+                                <option value="">All Activities</option>
+                                <option value="expense">Expenses</option>
+                                <option value="income">Income</option>
                             </select>
                         </div>
                     </div>
-                    <div class="income-list" id="income-list"></div>
+                    <div id="activity-log-list" class="activity-log-list"></div>
                 </div>
 
-                <!-- Payment Methods View -->
-                <div id="payment-methods-view" class="view">
-                    <div class="payment-methods-header">
-                        <button class="btn btn-primary" id="add-payment-method-btn">+ Add Payment Method</button>
-                    </div>
-                    <div class="payment-methods-list" id="payment-methods-list"></div>
-                </div>
-
-                <!-- Cards View -->
-                <div id="cards-view" class="view">
-                    <div class="cards-header">
-                        <button class="btn btn-primary" id="add-card-btn">+ Add Card</button>
-                    </div>
-                    <div class="cards-list" id="cards-list"></div>
-                </div>
-
-                <!-- Debts View -->
-                <div id="debts-view" class="view">
-                    <div class="debts-header">
-                        <button class="btn btn-primary" id="add-debt-btn">+ Add Debt</button>
+                <!-- Tasks View -->
+                <div id="tasks-view" class="view">
+                    <div class="tasks-header">
+                        <div class="tasks-header-left">
+                            <h2>📋 My Tasks</h2>
+                        </div>
+                        <div class="tasks-header-right">
+                            <button class="btn btn-primary" id="add-task-btn">+ Add Task</button>
+                        </div>
                     </div>
 
-                    <!-- Card Debts Summary -->
-                    <div id="card-debts-section" style="display: none;">
-                        <h3 style="margin-top: 30px; margin-bottom: 15px;">💳 Credit Card Debts</h3>
-                        <div class="card-debts-grid" id="card-debts-grid"></div>
+                    <!-- Task Filters -->
+                    <div class="task-filters">
+                        <select id="task-status-filter" class="filter-select">
+                            <option value="">All Tasks</option>
+                            <option value="not_started">Not Started</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <select id="task-priority-filter" class="filter-select">
+                            <option value="">All Priorities</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <input type="text" id="task-search" class="filter-input" placeholder="Search tasks...">
                     </div>
 
-                    <!-- Other Debts -->
-                    <div id="other-debts-section">
-                        <h3 style="margin-top: 30px; margin-bottom: 15px;">📋 Other Debts</h3>
-                        <div id="debts-summary"></div>
-                        <div class="debts-list" id="debts-list"></div>
+                    <!-- Task Statistics -->
+                    <div class="task-stats-container">
+                        <div class="task-stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <p class="stat-label">Total Tasks</p>
+                                <p class="stat-value" id="task-total">0</p>
+                            </div>
+                        </div>
+                        <div class="task-stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <p class="stat-label">Completed</p>
+                                <p class="stat-value" id="task-completed">0</p>
+                            </div>
+                        </div>
+                        <div class="task-stat-card">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-content">
+                                <p class="stat-label">In Progress</p>
+                                <p class="stat-value" id="task-in-progress">0</p>
+                            </div>
+                        </div>
+                        <div class="task-stat-card">
+                            <div class="stat-icon">⚠️</div>
+                            <div class="stat-content">
+                                <p class="stat-label">Overdue</p>
+                                <p class="stat-value" id="task-overdue">0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tasks List -->
+                    <div class="tasks-list-container">
+                        <div id="tasks-list" class="tasks-list"></div>
                     </div>
                 </div>
 
@@ -429,10 +571,10 @@
                         <div class="settings-section">
                             <h3>ℹ️ About</h3>
                             <div class="about-info">
-                                <p><strong>Expense Tracker</strong> v2.0</p>
-                                <p>A powerful and beautiful expense tracking application</p>
+                                <p><strong>PersonalTracker</strong> v1.0</p>
+                                <p>A comprehensive personal tracking application for finances, tasks, and more</p>
                                 <p style="margin-top: 10px; color: var(--text-secondary); font-size: 12px;">
-                                    © 2025 Expense Tracker. All rights reserved.
+                                    © 2025 PersonalTracker. All rights reserved.
                                 </p>
                             </div>
                         </div>
@@ -477,20 +619,11 @@
                     <input type="date" id="expense-date" required>
                 </div>
                 <div class="form-group">
-                    <label>Payment Method *</label>
-                    <select id="expense-payment" required>
-                        <option value="">Select Payment Method</option>
-                        <option value="credit_card">Credit Card</option>
-                        <option value="debit_card">Debit Card</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cash">Cash</option>
+                    <label>Income Source *</label>
+                    <select id="expense-income-source" required>
+                        <option value="">Select Income Source</option>
                     </select>
-                </div>
-                <div class="form-group">
-                    <label>Card/Account Name *</label>
-                    <select id="expense-card" required>
-                        <option value="">Select Card/Account</option>
-                    </select>
+                    <div id="expense-income-validation" style="margin-top: 8px; font-size: 12px; color: #f44336; display: none;"></div>
                 </div>
                 <div class="form-group">
                     <label>Frequency</label>
@@ -548,238 +681,150 @@
         </div>
     </div>
 
-    <!-- Add/Edit Income Modal -->
-    <div id="income-modal" class="modal">
+
+    <!-- Add/Edit Task Modal -->
+    <div id="task-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="income-modal-title">Add Income</h2>
+                <h2 id="task-modal-title">Add Task</h2>
                 <button class="modal-close">&times;</button>
             </div>
-            <form id="income-form">
+            <form id="task-form">
+                <input type="hidden" id="task-id">
                 <div class="form-group">
-                    <label>Amount *</label>
-                    <input type="number" id="income-amount" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label>Source *</label>
-                    <input type="text" id="income-source" placeholder="e.g., Salary, Freelance" required>
+                    <label>Task Title *</label>
+                    <input type="text" id="task-title" placeholder="Enter task title" required>
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <input type="text" id="income-description">
+                    <textarea id="task-description" placeholder="Enter task description"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Priority *</label>
+                        <select id="task-priority" required>
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status *</label>
+                        <select id="task-status" required>
+                            <option value="not_started" selected>Not Started</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" id="task-category" placeholder="e.g., Work, Personal">
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="task-due-date">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Date *</label>
-                    <input type="date" id="income-date" required>
-                </div>
-                <div class="form-group">
-                    <label>Frequency</label>
-                    <select id="income-frequency">
-                        <option value="once">Once</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
+                    <label>Assign To</label>
+                    <select id="task-assigned-to">
+                        <option value="">-- Select User --</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="income-recurring">
-                        Recurring Income
-                    </label>
+                    <label>Tags</label>
+                    <input type="text" id="task-tags" placeholder="Comma-separated tags">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" onclick="app.saveTask()">Save Task</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('task-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Budget Item Modal -->
+    <div id="budget-item-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="budget-item-modal-title">Add Budget Item</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="budget-item-form">
+                <div class="form-group">
+                    <label>Category *</label>
+                    <input type="text" id="budget-item-category" placeholder="e.g., Mortgage, Insurance - Home, Electricity" required>
+                </div>
+                <div class="form-group">
+                    <label>Group/Section *</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="budget-item-group" required style="flex: 1;">
+                            <option value="">-- Select Group --</option>
+                            <option value="Income">Income</option>
+                            <option value="Business_Expenses">Business Expenses</option>
+                            <option value="Rental_Expenses">Rental Expenses</option>
+                            <option value="Savings_Investing_Giving">Savings, Investing & Giving</option>
+                            <option value="Housing">Housing</option>
+                            <option value="Utilities_Bills">Utilities & Bills</option>
+                            <option value="Transportation">Transportation</option>
+                            <option value="Food_Dining_Lifestyle">Food, Dining & Lifestyle</option>
+                            <option value="Health_Insurance">Health & Insurance</option>
+                            <option value="Personal_Shopping">Personal & Shopping</option>
+                            <option value="__new__">+ Create New Group</option>
+                        </select>
+                        <input type="text" id="budget-item-new-group" placeholder="New group name" style="flex: 1; display: none;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Budget Amount *</label>
+                    <input type="number" id="budget-item-amount" step="0.01" placeholder="0.00" required>
                 </div>
                 <div class="form-group">
                     <label>Notes</label>
-                    <textarea id="income-notes" rows="3"></textarea>
+                    <textarea id="budget-item-notes" placeholder="Add any notes..." rows="3"></textarea>
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save Income</button>
-                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('income-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Item</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('budget-item-modal')">Cancel</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Add/Edit Payment Method Modal -->
-    <div id="payment-method-modal" class="modal">
+    <!-- Add Spent Modal (for Expenses) -->
+    <div id="add-spent-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="payment-method-modal-title">Add Payment Method</h2>
+                <h2 id="add-spent-modal-title">Add Spent Amount</h2>
                 <button class="modal-close">&times;</button>
             </div>
-            <form id="payment-method-form">
+            <form id="add-spent-form">
                 <div class="form-group">
-                    <label>Method Name *</label>
-                    <input type="text" id="payment-method-name" required>
+                    <label>Category *</label>
+                    <input type="text" id="add-spent-category" readonly style="background: #f5f5f5;">
                 </div>
                 <div class="form-group">
-                    <label>Type *</label>
-                    <select id="payment-method-type" required>
-                        <option value="">Select Type</option>
-                        <option value="card">Card</option>
-                        <option value="bank">Bank</option>
-                        <option value="cash">Cash</option>
-                        <option value="digital_wallet">Digital Wallet</option>
+                    <label>Amount Spent *</label>
+                    <input type="number" id="add-spent-amount" placeholder="0.00" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Income Source *</label>
+                    <select id="add-spent-income-source" required>
+                        <option value="">-- Select Income Source --</option>
+                        <!-- Options will be populated dynamically -->
                     </select>
-                </div>
-                <div class="form-group">
-                    <label>Icon (Emoji)</label>
-                    <input type="text" id="payment-method-icon" placeholder="e.g., 💳">
-                </div>
-                <div class="form-group">
-                    <label>Color (Hex)</label>
-                    <input type="color" id="payment-method-color">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save Payment Method</button>
-                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('payment-method-modal')">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Add/Edit Card Modal -->
-    <div id="card-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="card-modal-title">Add Card</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <form id="card-form">
-                <div class="form-group">
-                    <label>Card Name *</label>
-                    <input type="text" id="card-name" placeholder="e.g., My Visa" required>
-                </div>
-                <div class="form-group">
-                    <label>Card Type *</label>
-                    <select id="card-type" required>
-                        <option value="">Select Type</option>
-                        <option value="credit">Credit Card</option>
-                        <option value="debit">Debit Card</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Provider *</label>
-                    <input type="text" id="card-provider" placeholder="e.g., Visa, Mastercard" required>
-                </div>
-                <div class="form-group">
-                    <label>Last 4 Digits</label>
-                    <input type="text" id="card-last-four" placeholder="1234" maxlength="4">
-                </div>
-                <div class="form-group">
-                    <label>Bank Name</label>
-                    <input type="text" id="card-bank" placeholder="e.g., Chase">
-                </div>
-                <div class="form-group">
-                    <label>Expiry Date (MM/YY)</label>
-                    <input type="text" id="card-expiry" placeholder="12/25">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save Card</button>
-                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('card-modal')">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Add/Edit Debt Modal -->
-    <div id="debt-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="debt-modal-title">Add Debt</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <form id="debt-form">
-                <div class="form-group">
-                    <label>Debt Name *</label>
-                    <input type="text" id="debt-name" placeholder="e.g., Car Loan, Credit Card" required>
-                </div>
-                <div class="form-group">
-                    <label>Debt Type *</label>
-                    <select id="debt-type" required>
-                        <option value="">Select Type</option>
-                        <option value="car_loan">Car Loan</option>
-                        <option value="home_loan">Home Loan</option>
-                        <option value="credit_card">Credit Card</option>
-                        <option value="student_loan">Student Loan</option>
-                        <option value="personal_loan">Personal Loan</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group" id="card-selection-group" style="display: none;">
-                    <label>Select Your Card *</label>
-                    <select id="debt-card-id">
-                        <option value="">Select a Card</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Creditor/Bank Name</label>
-                    <input type="text" id="debt-creditor" placeholder="e.g., Chase Bank">
-                </div>
-                <div class="form-group">
-                    <label>Original Amount *</label>
-                    <input type="number" id="debt-original-amount" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label>Current Balance *</label>
-                    <input type="number" id="debt-current-balance" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label>Minimum Monthly Payment</label>
-                    <input type="number" id="debt-min-payment" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Interest Rate (%)</label>
-                    <input type="number" id="debt-interest-rate" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Due Date (Day of Month)</label>
-                    <input type="number" id="debt-due-date" min="1" max="31" value="1">
-                </div>
-                <div class="form-group">
-                    <label>Start Date</label>
-                    <input type="date" id="debt-start-date">
-                </div>
-                <div class="form-group">
-                    <label>Target Payoff Date</label>
-                    <input type="date" id="debt-payoff-date">
+                    <div id="income-source-validation" style="margin-top: 8px; font-size: 12px; color: #f44336; display: none;"></div>
                 </div>
                 <div class="form-group">
                     <label>Notes</label>
-                    <textarea id="debt-notes" placeholder="Add any notes about this debt"></textarea>
+                    <textarea id="add-spent-notes" placeholder="Optional notes" rows="3"></textarea>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-primary" onclick="app.saveDebt()">Save Debt</button>
-                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('debt-modal')">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Debt Payment Modal -->
-    <div id="debt-payment-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Make Debt Payment</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <form id="debt-payment-form">
-                <input type="hidden" id="payment-debt-id">
-                <div class="form-group">
-                    <label>Debt</label>
-                    <div id="payment-debt-name" style="font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;"></div>
-                </div>
-                <div class="form-group">
-                    <label>Current Balance</label>
-                    <div id="payment-current-balance" style="font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;"></div>
-                </div>
-                <div class="form-group">
-                    <label>Payment Amount *</label>
-                    <input type="number" id="payment-amount" step="0.01" required>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-primary" onclick="app.makeDebtPayment()">Record Payment</button>
-                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('debt-payment-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Record Spent</button>
+                    <button type="button" class="btn btn-secondary" onclick="UI.hideModal('add-spent-modal')">Cancel</button>
                 </div>
             </form>
         </div>
@@ -787,6 +832,8 @@
 
     <script src="js/api.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/taskManager.js"></script>
+    <script src="js/paymentHistoryUI.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

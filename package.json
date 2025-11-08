@@ -1,7 +1,7 @@
 {
-  "name": "expense-tracker",
+  "name": "personal-tracker",
   "version": "1.0.0",
-  "description": "A powerful and stunning expense tracking application",
+  "description": "A powerful personal tracking application for expenses, income, debts, and more",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

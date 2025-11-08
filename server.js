@@ -14,8 +14,14 @@ const incomeRoutes = require('./src/routes/incomeRoutes');
 const paymentMethodRoutes = require('./src/routes/paymentMethodRoutes');
 const cardRoutes = require('./src/routes/cardRoutes');
 const debtRoutes = require('./src/routes/debtRoutes');
+const taskRoutes = require('./src/routes/taskRoutes');
 const authRoutes = require('./src/routes/authRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 const logsRoutes = require('./src/routes/logsRoutes');
+const paymentHistoryRoutes = require('./src/routes/paymentHistoryRoutes');
+const bankAccountRoutes = require('./src/routes/bankAccountRoutes');
+const activityLogRoutes = require('./src/routes/activityLogRoutes');
+const budgetRoutes = require('./src/routes/budgetRoutes');
 
 // Initialize database
 db.initializeDatabase();
@@ -48,10 +54,16 @@ app.use('/api/income', incomeRoutes);
 app.use('/api/payment-methods', paymentMethodRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/debts', debtRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/payment-history', paymentHistoryRoutes);
+app.use('/api/bank-accounts', bankAccountRoutes);
+app.use('/api/activity-log', activityLogRoutes);
+app.use('/api/budgets', budgetRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Expense Tracker API is running' });
+  res.json({ status: 'OK', message: 'Personal Tracker API is running' });
 });
 
 // Serve index.html for root path
@@ -91,7 +103,7 @@ app.use((req, res) => {
 
 // Start server
 const server = app.listen(PORT, () => {
-  const message = `🚀 Expense Tracker API running on http://localhost:${PORT}`;
+  const message = `🚀 Personal Tracker API running on http://localhost:${PORT}`;
   console.log(message);
   Logger.info('Server started successfully', {
     port: PORT,

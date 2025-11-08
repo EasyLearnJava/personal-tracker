@@ -1,6 +1,20 @@
 const API_BASE = '/api';
 
 class ExpenseAPI {
+  // ==================== HELPER METHODS ====================
+
+  /**
+   * Get headers with user ID for authenticated requests
+   */
+  static getAuthHeaders() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const headers = { 'Content-Type': 'application/json' };
+    if (user && user.id) {
+      headers['x-user-id'] = user.id;
+    }
+    return headers;
+  }
+
   // ==================== AUTHENTICATION ====================
 
   static async register(email, password, fullName = '') {
@@ -13,12 +27,29 @@ class ExpenseAPI {
   }
 
   static async login(email, password) {
-    const response = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    return response.json();
+    try {
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData);
+        return errorData;
+      }
+
+      const data = await response.json();
+      console.log('Login successful:', data);
+      return data;
+    } catch (error) {
+      console.error('Login error:', error);
+      return {
+        success: false,
+        error: error.message || 'Network error. Please check your connection.'
+      };
+    }
   }
 
   static async logout() {
@@ -119,11 +150,6 @@ class ExpenseAPI {
     return response.json();
   }
 
-  static async getCardSummary(startDate, endDate) {
-    const response = await fetch(`${API_BASE}/reports/summary/card?startDate=${startDate}&endDate=${endDate}`);
-    return response.json();
-  }
-
   static async getDailyTrend(startDate, endDate) {
     const response = await fetch(`${API_BASE}/reports/trend/daily?startDate=${startDate}&endDate=${endDate}`);
     return response.json();
@@ -200,126 +226,219 @@ class ExpenseAPI {
     return response.json();
   }
 
-  // Payment Methods
-  static async getPaymentMethods() {
-    const response = await fetch(`${API_BASE}/payment-methods`);
+
+
+  // ==================== TASKS ====================
+
+  // Get all tasks
+  static async getTasks() {
+    const response = await fetch(`${API_BASE}/tasks`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
-  static async createPaymentMethod(data) {
-    const response = await fetch(`${API_BASE}/payment-methods`, {
+  // Get task by ID
+  static async getTaskById(id) {
+    const response = await fetch(`${API_BASE}/tasks/${id}`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  // Create task
+  static async createTask(data) {
+    try {
+      const response = await fetch(`${API_BASE}/tasks`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Create task failed:', errorData);
+        return { success: false, error: errorData.error || 'Failed to create task' };
+      }
+
+      const result = await response.json();
+      console.log('Task created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Create task error:', error);
+      return { success: false, error: error.message || 'Network error' };
+    }
+  }
+
+  // Update task
+  static async updateTask(id, data) {
+    try {
+      const response = await fetch(`${API_BASE}/tasks/${id}`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Update task failed:', errorData);
+        return { success: false, error: errorData.error || 'Failed to update task' };
+      }
+
+      const result = await response.json();
+      console.log('Task updated successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Update task error:', error);
+      return { success: false, error: error.message || 'Network error' };
+    }
+  }
+
+  // Delete task
+  static async deleteTask(id) {
+    const response = await fetch(`${API_BASE}/tasks/${id}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  // Get tasks by status
+  static async getTasksByStatus(status) {
+    const response = await fetch(`${API_BASE}/tasks/filter/status?status=${status}`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  // Get tasks by priority
+  static async getTasksByPriority(priority) {
+    const response = await fetch(`${API_BASE}/tasks/filter/priority?priority=${priority}`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  // Get overdue tasks
+  static async getOverdueTasks() {
+    const response = await fetch(`${API_BASE}/tasks/filter/overdue`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  // Get task statistics
+  static async getTaskStatistics() {
+    const response = await fetch(`${API_BASE}/tasks/stats/summary`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  // Update task status
+  static async updateTaskStatus(id, status) {
+    const response = await fetch(`${API_BASE}/tasks/${id}/status`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ status })
+    });
+    return response.json();
+  }
+
+  // ==================== USERS ====================
+
+  // Get all users for task assignment
+  static async getAllUsers() {
+    try {
+      const response = await fetch(`${API_BASE}/users`);
+      if (!response.ok) {
+        console.error('Failed to fetch users');
+        return [];
+      }
+      const data = await response.json();
+      console.log('Users fetched:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
+  }
+
+  // ==================== PAYMENT HISTORY ====================
+
+  // Get all payment history
+  static async getPaymentHistory() {
+    const response = await fetch(`${API_BASE}/payment-history`);
+    return response.json();
+  }
+
+  // Get payment history by debt ID
+  static async getPaymentHistoryByDebt(debtId) {
+    const response = await fetch(`${API_BASE}/payment-history/debt/${debtId}`);
+    return response.json();
+  }
+
+  // Get recent payments
+  static async getRecentPayments(limit = 10) {
+    const response = await fetch(`${API_BASE}/payment-history/recent/${limit}`);
+    return response.json();
+  }
+
+  // Get payment statistics
+  static async getPaymentStatistics() {
+    const response = await fetch(`${API_BASE}/payment-history/stats/all`);
+    return response.json();
+  }
+
+  // ==================== BANK ACCOUNTS ====================
+
+  // Get all bank accounts
+  static async getBankAccounts() {
+    const response = await fetch(`${API_BASE}/bank-accounts`);
+    return response.json();
+  }
+
+  // Get active bank accounts
+  static async getActiveBankAccounts() {
+    const response = await fetch(`${API_BASE}/bank-accounts/active/list`);
+    return response.json();
+  }
+
+  // Get bank account by ID
+  static async getBankAccountById(id) {
+    const response = await fetch(`${API_BASE}/bank-accounts/${id}`);
+    return response.json();
+  }
+
+  // Get total balance
+  static async getTotalBalance() {
+    const response = await fetch(`${API_BASE}/bank-accounts/balance/total`);
+    return response.json();
+  }
+
+  // Create bank account
+  static async createBankAccount(accountData) {
+    const response = await fetch(`${API_BASE}/bank-accounts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(accountData)
     });
     return response.json();
   }
 
-  static async updatePaymentMethod(id, data) {
-    const response = await fetch(`${API_BASE}/payment-methods/${id}`, {
+  // Update bank account
+  static async updateBankAccount(id, accountData) {
+    const response = await fetch(`${API_BASE}/bank-accounts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(accountData)
     });
     return response.json();
   }
 
-  static async deletePaymentMethod(id) {
-    const response = await fetch(`${API_BASE}/payment-methods/${id}`, {
-      method: 'DELETE'
-    });
-    return response.json();
-  }
-
-  // Cards
-  static async getCards() {
-    const response = await fetch(`${API_BASE}/cards`);
-    return response.json();
-  }
-
-  static async createCard(data) {
-    const response = await fetch(`${API_BASE}/cards`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
-  }
-
-  static async updateCard(id, data) {
-    const response = await fetch(`${API_BASE}/cards/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
-  }
-
-  static async deleteCard(id) {
-    const response = await fetch(`${API_BASE}/cards/${id}`, {
-      method: 'DELETE'
-    });
-    return response.json();
-  }
-
-  // Debts
-  static async getDebts() {
-    const response = await fetch(`${API_BASE}/debts`);
-    return response.json();
-  }
-
-  static async getActiveDebts() {
-    const response = await fetch(`${API_BASE}/debts/active`);
-    return response.json();
-  }
-
-  static async getDebtById(id) {
-    const response = await fetch(`${API_BASE}/debts/${id}`);
-    return response.json();
-  }
-
-  static async createDebt(data) {
-    const response = await fetch(`${API_BASE}/debts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
-  }
-
-  static async updateDebt(id, data) {
-    const response = await fetch(`${API_BASE}/debts/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
-  }
-
-  static async deleteDebt(id) {
-    const response = await fetch(`${API_BASE}/debts/${id}`, {
-      method: 'DELETE'
-    });
-    return response.json();
-  }
-
-  static async getDebtsByType(type) {
-    const response = await fetch(`${API_BASE}/debts/type/${type}`);
-    return response.json();
-  }
-
-  static async getDebtsByCard(cardId) {
-    const response = await fetch(`${API_BASE}/debts/card/${cardId}`);
-    return response.json();
-  }
-
-  static async getDebtSummary() {
-    const response = await fetch(`${API_BASE}/debts/summary/all`);
-    return response.json();
-  }
-
-  static async makeDebtPayment(debtId, amount) {
-    const response = await fetch(`${API_BASE}/debts/${debtId}/payment`, {
+  // Deduct from account
+  static async deductFromAccount(id, amount) {
+    const response = await fetch(`${API_BASE}/bank-accounts/${id}/deduct`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount })
@@ -327,8 +446,9 @@ class ExpenseAPI {
     return response.json();
   }
 
-  static async addExpenseToDebt(debtId, amount) {
-    const response = await fetch(`${API_BASE}/debts/${debtId}/add-expense`, {
+  // Add to account
+  static async addToAccount(id, amount) {
+    const response = await fetch(`${API_BASE}/bank-accounts/${id}/add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount })
@@ -336,30 +456,130 @@ class ExpenseAPI {
     return response.json();
   }
 
-  // Get debts by card ID
-  static async getDebtsByCard(cardId) {
-    const response = await fetch(`${API_BASE}/debts/card/${cardId}`);
+  // ==================== ACTIVITY LOG ====================
+
+  // Get all activity logs
+  static async getActivityLogs() {
+    const response = await fetch(`${API_BASE}/activity-log`);
     return response.json();
   }
 
-  // Get total debt for a card
-  static async getCardTotalDebt(cardId) {
-    const response = await fetch(`${API_BASE}/debts/card/${cardId}/total`);
+  // Get recent activity logs
+  static async getRecentActivityLogs(limit = 20) {
+    const response = await fetch(`${API_BASE}/activity-log/recent/${limit}`);
     return response.json();
   }
 
-  // Get all card debts with totals
-  static async getAllCardDebts() {
-    const response = await fetch(`${API_BASE}/debts/cards/all/summary`);
+  // Get activity statistics
+  static async getActivityStatistics() {
+    const response = await fetch(`${API_BASE}/activity-log/stats/all`);
     return response.json();
   }
 
-  // Create or update card debt
-  static async initializeCardDebt(cardId, cardName, initialBalance = 0) {
-    const response = await fetch(`${API_BASE}/debts/card/${cardId}/init`, {
+  // Get activity logs by type
+  static async getActivityLogsByType(type) {
+    const response = await fetch(`${API_BASE}/activity-log/type/${type}`);
+    return response.json();
+  }
+
+  // ==================== BUDGET METHODS ====================
+
+  // Get all budgets
+  static async getBudgets() {
+    const response = await fetch(`${API_BASE}/budgets`, {
+      headers: this.getAuthHeaders()
+    });
+    const data = await response.json();
+    return data.data || [];
+  }
+
+  // Get budget by ID
+  static async getBudgetById(id) {
+    const response = await fetch(`${API_BASE}/budgets/${id}`, {
+      headers: this.getAuthHeaders()
+    });
+    const data = await response.json();
+    return data.data;
+  }
+
+  // Get budget by month
+  static async getBudgetByMonth(month) {
+    const response = await fetch(`${API_BASE}/budgets/month/${month}`, {
+      headers: this.getAuthHeaders()
+    });
+    const data = await response.json();
+    return data.data;
+  }
+
+  // Create budget
+  static async createBudget(budgetData) {
+    const response = await fetch(`${API_BASE}/budgets`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cardName, initialBalance })
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(budgetData)
+    });
+    const data = await response.json();
+    return data.data;
+  }
+
+  // Update budget
+  static async updateBudget(id, budgetData) {
+    const response = await fetch(`${API_BASE}/budgets/${id}`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(budgetData)
+    });
+    const data = await response.json();
+    return data.data;
+  }
+
+  // Delete budget
+  static async deleteBudget(id) {
+    const response = await fetch(`${API_BASE}/budgets/${id}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  // Copy budget to another month
+  static async copyBudget(id, targetMonth) {
+    const response = await fetch(`${API_BASE}/budgets/${id}/copy`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ targetMonth })
+    });
+    const data = await response.json();
+    return data.data;
+  }
+
+  // Add budget item
+  static async addBudgetItem(budgetId, itemData) {
+    const response = await fetch(`${API_BASE}/budgets/${budgetId}/items`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(itemData)
+    });
+    const data = await response.json();
+    return data.data;
+  }
+
+  // Update budget item
+  static async updateBudgetItem(budgetId, itemId, itemData) {
+    const response = await fetch(`${API_BASE}/budgets/${budgetId}/items/${itemId}`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(itemData)
+    });
+    const data = await response.json();
+    return data.data;
+  }
+
+  // Delete budget item
+  static async deleteBudgetItem(budgetId, itemId) {
+    const response = await fetch(`${API_BASE}/budgets/${budgetId}/items/${itemId}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
     });
     return response.json();
   }
