@@ -3,8 +3,18 @@ const path = require('path');
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+let logsDirectoryAvailable = false;
+
+try {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+  logsDirectoryAvailable = true;
+} catch (error) {
+  // Vercel has read-only file system, so logging to files won't work
+  // We'll fall back to console logging only
+  console.warn('Logs directory not available (read-only file system). Using console logging only.');
+  logsDirectoryAvailable = false;
 }
 
 // Log file paths
@@ -36,6 +46,11 @@ const formatLogMessage = (level, message, data = null) => {
 
 // Write to file
 const writeToFile = (filePath, message) => {
+  // Skip file writing if logs directory is not available (e.g., Vercel)
+  if (!logsDirectoryAvailable) {
+    return;
+  }
+
   try {
     fs.appendFileSync(filePath, message + '\n' + '='.repeat(80) + '\n\n', 'utf8');
   } catch (error) {
