@@ -81,6 +81,6 @@ app.use((req, res) => {
   });
 });
 
-// Export for Vercel serverless
+// Export for Vercel serverless - Vercel automatically handles Express apps
 module.exports = app;
 

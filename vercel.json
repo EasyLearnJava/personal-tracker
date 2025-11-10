@@ -3,13 +3,6 @@
   "buildCommand": "npm install",
   "devCommand": "npm start",
   "public": true,
-  "functions": {
-    "api/index.js": {
-      "memory": 1024,
-      "maxDuration": 60,
-      "runtime": "nodejs18.x"
-    }
-  },
   "routes": [
     {
       "src": "/api/(.*)",
