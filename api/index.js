@@ -17,9 +17,16 @@ const logsRoutes = require('../src/routes/logsRoutes');
 const activityLogRoutes = require('../src/routes/activityLogRoutes');
 const budgetRoutes = require('../src/routes/budgetRoutes');
 
-// Initialize database
-db.initializeDatabase();
-supabaseDb.initializeDatabase();
+// Initialize database - wrap in try-catch for Vercel
+try {
+  db.initializeDatabase();
+  // supabaseDb.initializeDatabase() is async, so we don't await it here
+  supabaseDb.initializeDatabase().catch(err => {
+    console.error('Supabase initialization error:', err.message);
+  });
+} catch (error) {
+  console.error('Database initialization error:', error.message);
+}
 
 const app = express();
 
@@ -74,5 +81,6 @@ app.use((req, res) => {
   });
 });
 
+// Export for Vercel serverless
 module.exports = app;
 
